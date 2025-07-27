@@ -1,0 +1,31 @@
+services:
+  l4d2_panel:
+    build: .
+    container_name: l4d2-manager-panel
+    restart: always
+    ports:
+      # 将宿主机的端口映射到容器（左边是宿主机端口，右边是容器端口）
+      # Web 管理面板的端口
+      - "8080:8080"
+      # 求生之路服务器的端口，如果需要其他端口，可以继续添加
+      - "27015:27015/udp"
+    environment:
+      # 在这里设置您的登录凭证
+      - PANEL_USER=admin
+      - PANEL_PASSWORD=your_strong_password_123
+      # 设置时区，确保容器内时间正确
+      - TZ=Asia/Shanghai
+    volumes:
+      # !!! 关键部分：将宿主机目录挂载到容器内 !!!
+      # 确保下面的宿主机路径 (冒号左边) 是服务器上的真实路径
+      - /home/steam/l4d2server:/home/steam/l4d2server
+      - /home/steam/steamcmd:/home/steam/steamcmd
+      
+      # 将 app 目录也挂载进去，这样在修改 Python 或 Shell 代码后，只需重启容器即可生效，无需重建镜像
+      # docker compose restart l4d2_panel
+      - ./app:/app
+    # 增加这个配置，允许容器执行更广泛的系统调用，screen/steamcmd 可能需要
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
