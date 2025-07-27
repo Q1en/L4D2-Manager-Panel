@@ -12,7 +12,7 @@ if ((BASH_VERSINFO[0] < 4)); then
     exit 1
 fi
 
-# #################### 用户配置区 (从原始脚本继承) ####################
+# ########################## 用户配置区 ##########################
 ServerRoot="/home/steam/l4d2server"
 SteamCMDDir="/home/steam/steamcmd"
 declare -A ServerInstances=(
@@ -31,15 +31,12 @@ declare -A ServerInstances=(
         ExtraParams='+sv_gametypes \"versus,teamversus,scavenge\"'
     "
 )
-SteamLoginUser="" # 留空以使用匿名登录
 # #################################################################
 
 
 # --- 脚本变量定义 ---
 L4d2Dir="$ServerRoot/left4dead2"
 ScriptDir="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-# 注意: 面板的文件结构和原始独立脚本不同，路径需要适应
-# 假设插件和收据目录与此API脚本位于同一目录
 PluginSourceDir="$ScriptDir/Available_Plugins"
 ReceiptsDir="$ScriptDir/Installed_Receipts"
 InstallerDir="$ScriptDir/SourceMod_Installers"
@@ -47,7 +44,7 @@ InstallerDir="$ScriptDir/SourceMod_Installers"
 # 确保目录存在
 mkdir -p "$PluginSourceDir" "$ReceiptsDir" "$InstallerDir"
 
-# --- 核心功能函数 (从原始脚本继承并简化) ---
+# --- 核心功能函数 ---
 
 function Deploy-L4D2Server_NonInteractive() {
     echo "--- 开始部署/更新 L4D2 服务器 ---"
@@ -62,16 +59,18 @@ function Deploy-L4D2Server_NonInteractive() {
     fi
 
     mkdir -p "$ServerRoot"
-    local login_credential="anonymous"
-    if [[ -n "$SteamLoginUser" ]]; then
-        login_credential="$SteamLoginUser"
-    fi
-    echo "使用登录名: $login_credential"
 
-    # 执行更新，实时输出日志
-    "$steamcmd_executable" +force_install_dir "$ServerRoot" +login "$login_credential" +app_update 222860 validate +quit
+    # 优先使用环境变量中的用户名和密码
+    if [ -n "$STEAM_USER" ] && [ -n "$STEAM_PASSWORD" ]; then
+        echo "使用账户: $STEAM_USER"
+        unbuffer "$steamcmd_executable" +force_install_dir "$ServerRoot" +login "$STEAM_USER" "$STEAM_PASSWORD" +app_update 222860 validate +quit | sed -u 's/\x1b\[[0-9;]*[a-zA-Z]//g'
+    else
+        # 否则，使用匿名登录
+        echo "使用匿名 (anonymous) 登录。"
+        unbuffer "$steamcmd_executable" +force_install_dir "$ServerRoot" +login anonymous +app_update 222860 validate +quit | sed -u 's/\x1b\[[0-9;]*[a-zA-Z]//g'
+    fi
     
-    if [ $? -eq 0 ]; then
+    if [ ${PIPESTATUS[0]} -eq 0 ]; then
         echo "--- L4D2 服务器文件部署/更新成功! ---"
     else
         echo "--- SteamCMD 执行失败，请检查以上日志。 ---"
