@@ -12,7 +12,14 @@ services:
     environment:
       # 在这里设置您的登录凭证
       - PANEL_USER=admin
-      - PANEL_PASSWORD=your_strong_password_123
+      - PANEL_PASSWORD=your_strong_password
+
+      # SteamCMD 的登录信息
+      # 如果已经部署过求生之路服务器文件，可以注释掉这两行
+      # 警告：存在安全风险，推荐使用自己的 Steam 小号登录
+      - STEAM_USER=your_steam_username
+      - STEAM_PASSWORD=your_steam_password
+
       # 设置时区，确保容器内时间正确
       - TZ=Asia/Shanghai
     volumes:

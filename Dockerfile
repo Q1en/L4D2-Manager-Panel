@@ -20,6 +20,7 @@ RUN dpkg --add-architecture i386 && \
     tar \
     ca-certificates \
     sudo \
+    expect \
     lib32gcc-s1 \
     && rm -rf /var/lib/apt/lists/*
 
