@@ -61,6 +61,12 @@ def logout():
 def dashboard():
     return render_template('dashboard.html')
 
+@app.route('/plugins')
+@login_required
+def plugins():
+    """插件管理页面路由"""
+    return render_template('plugins.html')
+
 # --- API 路由 ---
 @app.route('/api/status', methods=['GET'])
 @login_required
