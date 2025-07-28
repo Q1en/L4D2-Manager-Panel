@@ -18,14 +18,14 @@ SteamCMDDir="/home/steam/steamcmd"
 declare -A ServerInstances=(
     ["主服_战役"]="
         Port=27015
-        HostName='[CN] Polaris Panel - Campaign Server'
+        HostName='[CN] My L4D2 Campaign Server'
         MaxPlayers=8
         StartMap='c1m1_hotel'
         ExtraParams='+sv_gametypes \"coop,realism,survival\"'
     "
     ["副服_对抗"]="
         Port=27016
-        HostName='[CN] Polaris Panel - Versus Server'
+        HostName='[CN] My L4D2 Versus Server'
         MaxPlayers=8
         StartMap='c5m1_waterfront'
         ExtraParams='+sv_gametypes \"versus,teamversus,scavenge\"'
