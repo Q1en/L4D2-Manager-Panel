@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>操作日志 - L4D2 管理面板</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+    <div class="main-container">
+        <header class="page-header">
+            <h1>操作日志</h1>
+            <a href="/" class="btn btn-secondary">
+                <i data-feather="arrow-left" style="width:18px; height:18px;"></i>
+                <span>返回仪表盘</span>
+            </a>
+        </header>
+
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-3);">
+                <h2>日志记录</h2>
+                <div class="item-actions">
+                     <button class="btn btn-secondary" onclick="loadLogs()" title="刷新">
+                        <i data-feather="refresh-cw" style="width:16px;"></i>
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportLogs()" title="导出日志">
+                        <i data-feather="download" style="width:16px;"></i>
+                    </button>
+                    <button class="btn btn-danger" onclick="clearLogs()" title="清空所有日志">
+                        <i data-feather="trash-2" style="width:16px;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="logs-controls">
+                <div>
+                    <label for="actionFilter" class="form-label" style="margin-bottom: var(--space-1);">操作类型</label>
+                    <select id="actionFilter" class="form-input" style="width: 200px; padding-right: var(--space-5); border-radius: var(--border-radius-md);">
+                        <option value="">所有类型</option>
+                        <option value="login_attempt">登录尝试</option>
+                        <option value="logout">登出</option>
+                        <option value="api_call">API 调用</option>
+                        <option value="script_execution">脚本执行</option>
+                        <option value="clear_logs">清空日志</option>
+                    </select>
+                </div>
+                 <div>
+                    <label for="limitInput" class="form-label" style="margin-bottom: var(--space-1);">显示条数</label>
+                    <input type="number" id="limitInput" class="form-input" value="100" min="10" max="1000" step="10" style="width: 120px; border-radius: var(--border-radius-md);">
+                </div>
+            </div>
+            
+            <div id="logsContainer" style="overflow-x: auto;">
+                <div class="loading" style="text-align: center; padding: var(--space-6); color: var(--text-secondary);">正在加载日志...</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+let currentLogs = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+    feather.replace();
+    loadLogs();
+    
+    document.getElementById('actionFilter').addEventListener('change', loadLogs);
+    document.getElementById('limitInput').addEventListener('change', loadLogs);
+});
+
+async function loadLogs() {
+    const container = document.getElementById('logsContainer');
+    container.innerHTML = '<div class="loading" style="text-align: center; padding: var(--space-6); color: var(--text-secondary);">正在加载日志...</div>';
+
+    try {
+        const limit = document.getElementById('limitInput').value;
+        const actionFilter = document.getElementById('actionFilter').value;
+        
+        let url = `/api/logs?limit=${limit}`;
+        if (actionFilter) url += `&action=${actionFilter}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+            currentLogs = data.logs;
+            displayLogs(data.logs);
+        } else {
+            container.innerHTML = `<div style="text-align: center; padding: var(--space-6); color: var(--status-danger);">加载日志失败: ${data.message}</div>`;
+        }
+    } catch (error) {
+        container.innerHTML = `<div style="text-align: center; padding: var(--space-6); color: var(--status-danger);">加载日志失败: ${error.message}</div>`;
+    } finally {
+        feather.replace();
+    }
+}
+
+function displayLogs(logs) {
+    const container = document.getElementById('logsContainer');
+    if (logs.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: var(--space-6); color: var(--text-secondary);">暂无日志记录</div>';
+        return;
+    }
+
+    let tableHTML = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>操作</th>
+                    <th>状态</th>
+                    <th>IP 地址</th>
+                    <th>详情</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    logs.forEach(log => {
+        const timestamp = new Date(log.timestamp).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+        const statusClass = log.status;
+        const userInfo = (log.user_info && log.user_info.ip_address) ? log.user_info.ip_address : 'N/A';
+        const details = formatDetails(log.details);
+
+        tableHTML += `
+            <tr>
+                <td style="white-space: nowrap;">${timestamp}</td>
+                <td>${getActionDisplayName(log.action)}</td>
+                <td><span class="status-badge ${statusClass}">${log.status}</span></td>
+                <td>${userInfo}</td>
+                <td><pre class="cell-pre">${details}</pre></td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `</tbody></table>`;
+    container.innerHTML = tableHTML;
+}
+
+function getActionDisplayName(action) {
+    const actionNames = {
+        'login_attempt': '登录尝试', 'logout': '登出', 'api_call': 'API 调用',
+        'script_execution': '脚本执行', 'clear_logs': '清空日志'
+    };
+    return actionNames[action] || action;
+}
+
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') {
+        return '';
+    }
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
+function formatDetails(details) {
+    // 格式化为易读的JSON，并进行HTML转义
+    const formattedJson = JSON.stringify(details, null, 2);
+    return escapeHtml(formattedJson);
+}
+
+async function clearLogs() {
+    const result = await Swal.fire({
+        title: '确定要清空所有日志吗?',
+        text: "此操作不可恢复!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--status-danger)',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '是的, 清空!',
+        cancelButtonText: '取消'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            const response = await fetch('/api/logs/clear', { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                Swal.fire('已清空!', '所有日志记录已被删除。', 'success');
+                loadLogs();
+            } else {
+                Swal.fire('失败!', `清空日志失败: ${data.message}`, 'error');
+            }
+        } catch (error) {
+            Swal.fire('错误!', `清空日志时发生错误: ${error.message}`, 'error');
+        }
+    }
+}
+
+function exportLogs() {
+    if (currentLogs.length === 0) {
+        Swal.fire('无内容', '没有日志可以导出。', 'info');
+        return;
+    }
+    const dataStr = JSON.stringify(currentLogs, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json;charset=utf-8'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `l4d2_panel_logs_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>

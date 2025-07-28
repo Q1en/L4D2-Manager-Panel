@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>L4D2 管理面板 - 仪表盘</title>
+    <title>仪表盘 - L4D2 管理面板</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -60,10 +60,13 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h2>插件管理</h2>
+                    <h2>插件管理 & 日志</h2>
                 </div>
-                <p>在这里管理和批量安装/卸载服务器插件。</p>
-                <a href="/plugins" class="btn btn-secondary" style="margin-top: auto;">前往插件管理</a>
+                <p>管理服务器插件，或查看面板的所有操作记录。</p>
+                <div style="margin-top: auto; display: flex; gap: var(--space-3);">
+                    <a href="/plugins" class="btn btn-secondary" style="flex: 1;">前往插件管理</a>
+                    <a href="/logs" class="btn btn-secondary" style="flex: 1;">查看操作日志</a>
+                </div>
             </div>
         </div>
     </div>

@@ -258,3 +258,82 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     flex-shrink: 0;
     cursor: pointer;
 }
+
+
+/* --- 8. 日志页面特定样式 --- */
+.logs-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border-default);
+    margin-bottom: var(--space-4);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.data-table th {
+    text-align: left;
+    padding: var(--space-3);
+    border-bottom: 2px solid var(--border-default);
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.data-table td {
+    padding: var(--space-3);
+    vertical-align: top;
+    font-size: 14px;
+}
+
+.data-table tbody tr {
+    border-bottom: 1px solid var(--border-default);
+    transition: background-color 0.2s ease;
+}
+
+.data-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--bg-secondary);
+}
+
+/* 为长内容单元格设置强制换行 */
+.data-table .cell-pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 13px;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* 状态标签样式 */
+.status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: var(--border-radius-full);
+    text-transform: capitalize;
+    line-height: 1.5;
+}
+
+.status-badge.success,
+.status-badge.completed,
+.status-badge.started {
+    background-color: #e7f7ec;
+    color: #23944f;
+}
+
+.status-badge.failed {
+    background-color: #fdecea;
+    color: #e12d39;
+}
