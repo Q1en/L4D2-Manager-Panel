@@ -6,39 +6,453 @@
     <title>L4D2 管理面板 - 仪表盘</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        :root { --main-bg: #f0f2f5; --card-bg: #ffffff; --text-color: #333; --primary-color: #007bff; --green: #28a745; --red: #dc3545; --yellow: #ffc107; --border-color: #dee2e6; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--main-bg); color: var(--text-color); margin: 0; padding: 1.5rem; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-        h1 { color: #1f2937; margin: 0; }
-        .logout-btn { background: var(--red); color: white; padding: 0.5rem 1rem; border-radius: 5px; text-decoration: none; font-weight: 500; }
-        .container { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; }
-        .card { background: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 1.5rem; }
-        .card h2 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem; font-size: 1.25rem; }
-        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
-        .status-item { text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 5px; }
-        .status-item span { font-size: 1.5rem; font-weight: 600; display: block; }
-        .status-label-true { color: var(--green); }
-        .status-label-false { color: var(--red); }
-        .action-btn { background: var(--primary-color); color: white; border: none; padding: 0.8rem 1.2rem; border-radius: 5px; cursor: pointer; font-size: 1rem; transition: background-color 0.2s; width: 100%; text-align: center; box-sizing: border-box; }
-        .action-btn:hover { background-color: #0056b3; }
-        a.action-btn { text-decoration: none; display: block; }
-        .instance-list { list-style: none; padding: 0; margin: 0; }
-        .instance-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
-        .instance-item:last-child { border-bottom: none; }
-        .instance-info { display: flex; align-items: center; gap: 0.75rem; }
-        .status-dot { width: 12px; height: 12px; border-radius: 50%; }
-        .status-dot.running { background-color: var(--green); }
-        .status-dot.stopped { background-color: var(--red); }
-        .instance-name { font-weight: 500; }
-        .instance-details { font-size: 0.85rem; color: #6b7280; }
-        .item-actions button { font-size: 0.8rem; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; border: none; color: white; }
-        .btn-start { background: var(--green); }
-        .btn-stop { background: var(--red); }
-        #logModal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }
-        .modal-content { background-color: #1e1e1e; color: #d4d4d4; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; height: 70%; border-radius: 8px; display: flex; flex-direction: column; }
-        #logOutput { flex-grow: 1; overflow-y: auto; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; background: #1e1e1e; border: 1px solid #333; padding: 10px; border-radius: 5px; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 10px;}
-        .close-btn { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+        /* 根据设计风格文件重构的仪表盘样式 */
+        :root {
+            --main-bg: #ffffff;
+            --card-bg: #ffffff;
+            --text-color: #171717;
+            --primary-color: #171717;
+            --green: #28a745;
+            --red: #dc3545;
+            --yellow: #ffc107;
+            --border-color: #e5e7eb;
+            --hover-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* 暗黑模式支持 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --main-bg: #171717;
+                --card-bg: #1f1f1f;
+                --text-color: #ffffff;
+                --border-color: #333333;
+                --primary-color: #ffffff;
+            }
+        }
+        
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: var(--main-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 1.5rem;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* Hero区域 - 大标题样式 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        h1 {
+            color: var(--text-color);
+            margin: 0;
+            font-size: 3.75rem; /* 6xl */
+            font-weight: bold;
+            letter-spacing: -0.025em;
+        }
+        
+        /* 按钮悬移动画效果 */
+        .logout-btn {
+            background: var(--red);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+            border-color: var(--red);
+        }
+        
+        /* 网格布局 */
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        /* 卡片式设计，带有圆角和边框 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        /* 悬停效果：边框颜色变化和轻微阴影 */
+        .card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--hover-shadow);
+            transform: translateY(-2px);
+        }
+        
+        .card h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 1.5rem; /* xl */
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card-header h2 {
+            margin: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        
+        .refresh-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border-color: var(--primary-color);
+            background-color: var(--text-color);
+        }
+        
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .status-item {
+            text-align: center;
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        
+        .status-item:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+        }
+        
+        .status-item span {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: block;
+        }
+        
+        .status-label-true {
+            color: var(--green);
+        }
+        
+        .status-label-false {
+            color: var(--red);
+        }
+        
+        /* 按钮悬移动画效果 */
+        .action-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+            border: 2px solid transparent;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+            border-color: var(--primary-color);
+            background-color: var(--text-color);
+        }
+        
+        a.action-btn {
+            text-decoration: none;
+            display: block;
+        }
+        
+        .instance-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .instance-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .instance-item:last-child {
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 0;
+        }
+        
+        .instance-item:hover {
+            background-color: rgba(23, 23, 23, 0.05);
+            transform: translateX(4px);
+        }
+        
+        .instance-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .status-dot.running {
+            background-color: var(--green);
+        }
+        
+        .status-dot.stopped {
+            background-color: var(--red);
+        }
+        
+        .instance-name {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        
+        .instance-details {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+        
+        .item-actions button {
+            font-size: 0.8rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .item-actions button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .btn-start {
+            background: var(--green);
+        }
+        
+        .btn-stop {
+            background: var(--red);
+        }
+        
+        #logModal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+        }
+        
+        .modal-content {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            margin: 5% auto;
+            padding: 20px;
+            border: 2px solid var(--border-color);
+            width: 80%;
+            max-width: 800px;
+            height: 70%;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #logOutput {
+            flex-grow: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            background: #1e1e1e;
+            border: 1px solid #333;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .close-btn {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .close-btn:hover {
+            color: #fff;
+            transform: scale(1.1);
+        }
+        
+        /* 导航栏样式 */
+        .nav-bar {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .nav-btn {
+            background: transparent;
+            color: var(--text-color);
+            border: 2px solid var(--border-color);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+            border-color: var(--primary-color);
+        }
+        
+        .nav-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        /* 页面内容样式 */
+        .page-content {
+            display: none;
+        }
+        
+        .page-content.active {
+            display: block;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .nav-bar {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .nav-btn {
+                width: 100%;
+            }
+        }
+        
+        /* 暗黑模式下的特殊样式 */
+        @media (prefers-color-scheme: dark) {
+            .instance-item:hover {
+                background-color: rgba(255, 255, 255, 0.05);
+            }
+            
+            ::-webkit-scrollbar-track {
+                background: #333;
+            }
+        }
     </style>
 </head>
 <body>
@@ -48,43 +462,70 @@
         <a href="/logout" class="logout-btn">退出登录</a>
     </header>
 
-    <div class="container">
-        <div class="card">
-            <h2>系统状态 & 核心操作</h2>
-            <div class="status-grid">
-                <div class="status-item">
-                    <span id="serverStatus" class="status-label-false">未知</span>
-                    服务器文件
-                </div>
-                <div class="status-item">
-                    <span id="smStatus" class="status-label-false">未知</span>
-                    SourceMod
-                </div>
-                 <div class="status-item">
-                    <span id="instanceCount" class="status-label-false">0</span>
-                    运行中实例
-                </div>
-                <div class="status-item">
-                    <span id="pluginCount" class="status-label-false">0</span>
-                    已安装插件
-                </div>
-            </div>
-            <button id="deployBtn" class="action-btn">部署 / 更新服务器文件</button>
-	        <button id="installSmBtn" class="action-btn" style="margin-top: 1rem; background-color: var(--green);">安装 / 更新 SourceMod & MetaMod</button>
-        </div>
+    <!-- 导航栏 -->
+    <nav class="nav-bar">
+        <button class="nav-btn active" data-page="system">系统状态</button>
+        <button class="nav-btn" data-page="instances">服务器实例</button>
+        <button class="nav-btn" data-page="plugins">插件管理</button>
+        <a href="/logs" class="nav-btn">操作日志</a>
+    </nav>
 
-        <div class="card">
-            <h2>服务器实例</h2>
-            <ul id="instanceList" class="instance-list">
-                <li>加载中...</li>
-            </ul>
-        </div>
-
-        <div class="card">
-            <h2>插件管理 & 其他</h2>
-            <p>在这里管理和批量安装/卸载服务器插件。</p>
-            <a href="/plugins" class="action-btn" style="margin-top: 1rem; background-color: var(--yellow); color: #333;">前往插件管理页面</a>
+    <!-- 系统状态页面 -->
+    <div id="systemPage" class="page-content active">
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2>系统状态 & 核心操作</h2>
+                    <button class="refresh-btn" onclick="refreshStatus()">🔄 刷新</button>
+                </div>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span id="serverStatus" class="status-label-false">未知</span>
+                        服务器文件
+                    </div>
+                    <div class="status-item">
+                        <span id="smStatus" class="status-label-false">未知</span>
+                        SourceMod
+                    </div>
+                     <div class="status-item">
+                        <span id="instanceCount" class="status-label-false">0</span>
+                        运行中实例
+                    </div>
+                    <div class="status-item">
+                        <span id="pluginCount" class="status-label-false">0</span>
+                        已安装插件
+                    </div>
+                </div>
+                <button id="deployBtn" class="action-btn">部署 / 更新服务器文件</button>
+	            <button id="installSmBtn" class="action-btn" style="margin-top: 1rem; background-color: var(--green);">安装 / 更新 SourceMod & MetaMod</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 服务器实例页面 -->
+    <div id="instancesPage" class="page-content">
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2>服务器实例</h2>
+                    <button class="refresh-btn" onclick="refreshInstances()">🔄 刷新</button>
+                </div>
+                <ul id="instanceList" class="instance-list">
+                    <li>加载中...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 插件管理页面 -->
+    <div id="pluginsPage" class="page-content">
+        <div class="container">
+            <div class="card">
+                <h2>插件管理 & 其他</h2>
+                <p>在这里管理和批量安装/卸载服务器插件。</p>
+                <a href="/plugins" class="action-btn" style="margin-top: 1rem; background-color: var(--yellow); color: #333;">前往插件管理页面</a>
+            </div>
+        </div>
     </div>
     
     <div id="logModal">
@@ -109,6 +550,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const logModal = document.getElementById('logModal');
     const logOutput = document.getElementById('logOutput');
     const closeBtn = document.querySelector('.close-btn');
+    
+    // 页面切换功能
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const pageContents = document.querySelectorAll('.page-content');
+    
+    navBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetPage = btn.getAttribute('data-page');
+            
+            // 移除所有活动状态
+            navBtns.forEach(b => b.classList.remove('active'));
+            pageContents.forEach(p => p.classList.remove('active'));
+            
+            // 添加活动状态
+            btn.classList.add('active');
+            document.getElementById(targetPage + 'Page').classList.add('active');
+        });
+    });
+    
+    // 移除自动刷新功能
+    closeBtn.onclick = () => { logModal.style.display = 'none'; };
+    window.onclick = (event) => {
+        if (event.target == logModal) {
+            logModal.style.display = 'none';
+        }
+    };
 
     closeBtn.onclick = () => { logModal.style.display = 'none'; };
     window.onclick = (event) => {
@@ -119,23 +586,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 数据获取与渲染 ---
     async function fetchData(url) {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const textData = await response.text();
         try {
-            return JSON.parse(JSON.parse(textData));
-        } catch (e) {
-             return JSON.parse(textData);
+            const response = await fetch(url);
+            const textData = await response.text();
+            
+            if (!response.ok) {
+                // 尝试解析错误响应
+                try {
+                    const errorData = JSON.parse(textData);
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                } catch (parseError) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            }
+            
+            try {
+                // 尝试双重解析（兼容旧格式）
+                return JSON.parse(JSON.parse(textData));
+            } catch (e) {
+                // 单次解析
+                return JSON.parse(textData);
+            }
+        } catch (error) {
+            console.error(`获取数据失败 (${url}):`, error);
+            throw error;
         }
+    }
+    
+    // 显示错误消息
+    function showErrorMessage(title, message) {
+        Swal.fire({
+            title: title,
+            text: message,
+            icon: 'error',
+            confirmButtonText: '确定'
+        });
     }
 
     function updateStatus() {
         fetchData('/api/status').then(data => {
             updateStatusLabel(serverStatusEl, data.serverDeployed, '已部署', '未部署');
             updateStatusLabel(smStatusEl, data.smInstalled, '已安装', '未安装');
-        }).catch(err => console.error("无法获取状态:", err));
+        }).catch(err => {
+            console.error("无法获取状态:", err);
+            showErrorMessage('获取系统状态失败', '错误: 此脚本需要 Bash 4.0 或更高版本才能运行');
+            // 设置为错误状态
+            updateStatusLabel(serverStatusEl, false, '已部署', '获取失败');
+            updateStatusLabel(smStatusEl, false, '已安装', '获取失败');
+        });
     }
 
     function updateInstances() {
@@ -173,18 +671,52 @@ document.addEventListener('DOMContentLoaded', () => {
             instanceCountEl.textContent = runningCount;
             instanceCountEl.className = runningCount > 0 ? 'status-label-true' : 'status-label-false';
 
-        }).catch(err => console.error("无法获取实例列表:", err));
+        }).catch(err => {
+            console.error("无法获取实例列表:", err);
+            showErrorMessage('获取服务器实例失败', err.message || '网络错误或服务器内部错误');
+            instanceListEl.innerHTML = '<li style="color: var(--red);">获取实例列表失败</li>';
+            instanceCountEl.textContent = '错误';
+            instanceCountEl.className = 'status-label-false';
+        });
     }
 
     function updatePlugins() {
         fetchData('/api/plugins').then(data => {
             pluginCountEl.textContent = data.installed.length;
-        }).catch(err => console.error("无法获取插件列表:", err));
+        }).catch(err => {
+            console.error("无法获取插件列表:", err);
+            showErrorMessage('获取插件列表失败', err.message || '网络错误或服务器内部错误');
+            pluginCountEl.textContent = '错误';
+            pluginCountEl.className = 'status-label-false';
+        });
     }
 
     function updateStatusLabel(el, condition, trueText, falseText) {
         el.textContent = condition ? trueText : falseText;
         el.className = condition ? 'status-label-true' : 'status-label-false';
+    }
+
+    // 手动刷新函数
+    function refreshStatus() {
+        updateStatus();
+        Swal.fire({
+            position: 'top-end',
+            icon: 'success',
+            title: '系统状态已刷新',
+            showConfirmButton: false,
+            timer: 1500
+        });
+    }
+
+    function refreshInstances() {
+        updateInstances();
+        Swal.fire({
+            position: 'top-end',
+            icon: 'success',
+            title: '实例列表已刷新',
+            showConfirmButton: false,
+            timer: 1500
+        });
     }
 
     // --- 事件处理 ---
@@ -289,6 +821,33 @@ document.addEventListener('DOMContentLoaded', () => {
         updateInstances();
         updatePlugins();
     }
+    
+    // 单独刷新系统状态
+    window.refreshStatus = function() {
+        updateStatus();
+        updatePlugins();
+        // 显示刷新提示
+        Swal.fire({
+            title: '刷新完成',
+            text: '系统状态已更新',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+        });
+    };
+    
+    // 单独刷新服务器实例
+    window.refreshInstances = function() {
+        updateInstances();
+        // 显示刷新提示
+        Swal.fire({
+            title: '刷新完成',
+            text: '服务器实例列表已更新',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+        });
+    };
 
     // 页面加载时和之后每10秒刷新一次数据
     refreshAll();

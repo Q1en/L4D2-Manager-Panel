@@ -5,15 +5,181 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L4D2 面板 - 登录</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
-        .login-container { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; }
-        h1 { text-align: center; color: #333; margin-bottom: 1.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: .5rem; color: #666; }
-        input { width: 100%; padding: .75rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: .75rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
-        button:hover { background-color: #0056b3; }
-        .error { color: #d93025; text-align: center; margin-top: 1rem; }
+        /* 根据设计风格文件重构的登录页面样式 */
+        :root {
+            --main-bg: #ffffff;
+            --card-bg: #ffffff;
+            --text-color: #171717;
+            --primary-color: #171717;
+            --border-color: #e5e7eb;
+            --error-color: #dc3545;
+            --input-focus: #171717;
+            --hover-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* 暗黑模式支持 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --main-bg: #171717;
+                --card-bg: #1f1f1f;
+                --text-color: #ffffff;
+                --border-color: #333333;
+                --primary-color: #ffffff;
+            }
+        }
+        
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--main-bg);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* 卡片式登录容器设计 */
+        .login-container {
+            background: var(--card-bg);
+            padding: 3rem;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 400px;
+            max-width: 90vw;
+            transition: all 0.3s ease;
+        }
+        
+        .login-container:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--hover-shadow);
+            transform: translateY(-2px);
+        }
+        
+        /* Hero区域 - 大标题样式 */
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+            margin-bottom: 2rem;
+            font-size: 2.25rem; /* xl */
+            font-weight: bold;
+            letter-spacing: -0.025em;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.75rem;
+            color: var(--text-color);
+            font-weight: 500;
+            font-size: 1rem;
+        }
+        
+        /* 输入框样式 - 圆角边框 */
+        input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--input-focus);
+            box-shadow: 0 0 0 3px rgba(23, 23, 23, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        input:hover {
+            border-color: var(--primary-color);
+        }
+        
+        /* 按钮悬移动画效果 */
+        button {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            margin-top: 0.5rem;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+            border-color: var(--primary-color);
+            background-color: var(--text-color);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .error {
+            color: var(--error-color);
+            text-align: center;
+            margin-top: 1.5rem;
+            font-weight: 500;
+            padding: 1rem;
+            background-color: rgba(220, 53, 69, 0.1);
+            border: 1px solid var(--error-color);
+            border-radius: 8px;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 2rem;
+                width: 100%;
+                margin: 1rem;
+            }
+            
+            h1 {
+                font-size: 1.875rem;
+            }
+        }
+        
+        /* 暗黑模式下的输入框焦点样式 */
+        @media (prefers-color-scheme: dark) {
+            input:focus {
+                box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+            }
+        }
     </style>
 </head>
 <body>
