@@ -6,25 +6,252 @@
     <title>L4D2 管理面板 - 插件管理</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        :root { --main-bg: #f0f2f5; --card-bg: #ffffff; --text-color: #333; --primary-color: #007bff; --green: #28a745; --red: #dc3545; --yellow: #ffc107; --border-color: #dee2e6; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--main-bg); color: var(--text-color); margin: 0; padding: 1.5rem; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-        h1 { color: #1f2937; margin: 0; }
-        .back-btn { background: #6c757d; color: white; padding: 0.5rem 1rem; border-radius: 5px; text-decoration: none; font-weight: 500; }
-        .plugins-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-        .card { background: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 1.5rem; display: flex; flex-direction: column; }
-        .card h2 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem; font-size: 1.25rem; }
-        .list-wrapper { border: 1px solid var(--border-color); border-radius: 5px; display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; }
-        .controls { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #f8f9fa; border: 1px solid var(--border-color); border-radius: 5px 5px 0 0; position: relative; z-index: 1; }
-        .controls label { display: flex; align-items: center; gap: 0.75rem; font-weight: 500; cursor: pointer; }
-        .plugin-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; border: 1px solid var(--border-color); border-radius: 0 0 5px 5px; margin-top: -1px; }
-        .plugin-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid #e5e7eb; cursor: pointer; }
-        .plugin-item:last-child { border-bottom: none; }
-        .plugin-item:hover { background-color: #f8f9fa; }
-        .plugin-item input[type="checkbox"], .controls input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
-        .action-btn { border: none; padding: 0.6rem 1rem; border-radius: 5px; cursor: pointer; font-size: 0.9rem; color: white; font-weight: 500; }
-        .btn-install { background: var(--green); }
-        .btn-uninstall { background: var(--red); }
+        /* 根据设计风格文件重构的插件管理页面样式 */
+        :root {
+            --main-bg: #ffffff;
+            --card-bg: #ffffff;
+            --text-color: #171717;
+            --primary-color: #171717;
+            --green: #28a745;
+            --red: #dc3545;
+            --yellow: #ffc107;
+            --border-color: #e5e7eb;
+            --hover-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* 暗黑模式支持 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --main-bg: #171717;
+                --card-bg: #1f1f1f;
+                --text-color: #ffffff;
+                --border-color: #333333;
+                --primary-color: #ffffff;
+            }
+        }
+        
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: var(--main-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 1.5rem;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* Hero区域 - 大标题样式 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            color: var(--text-color);
+            margin: 0;
+            font-size: 3.75rem; /* 6xl */
+            font-weight: bold;
+            letter-spacing: -0.025em;
+        }
+        
+        /* 按钮悬移动画效果 */
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+            border-color: #6c757d;
+        }
+        
+        /* 网格布局 */
+        .plugins-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        /* 卡片式设计，带有圆角和边框 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        
+        /* 悬停效果：边框颜色变化和轻微阴影 */
+        .card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--hover-shadow);
+            transform: translateY(-2px);
+        }
+        
+        .card h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 1.5rem; /* xl */
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 8px 8px 0 0;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .controls:hover {
+            border-color: var(--primary-color);
+        }
+        
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--text-color);
+        }
+        
+        .plugin-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+            border: 2px solid var(--border-color);
+            border-radius: 0 0 8px 8px;
+            margin-top: -2px;
+            background: var(--card-bg);
+        }
+        
+        .plugin-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-color);
+        }
+        
+        .plugin-item:last-child {
+            border-bottom: none;
+        }
+        
+        .plugin-item:hover {
+            background-color: rgba(23, 23, 23, 0.05);
+            transform: translateX(4px);
+        }
+        
+        .plugin-item input[type="checkbox"], .controls input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        
+        /* 按钮悬移动画效果 */
+        .action-btn {
+            border: none;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+        }
+        
+        .btn-install {
+            background: var(--green);
+        }
+        
+        .btn-install:hover {
+            border-color: var(--green);
+        }
+        
+        .btn-uninstall {
+            background: var(--red);
+        }
+        
+        .btn-uninstall:hover {
+            border-color: var(--red);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .plugins-container {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+        
+        /* 暗黑模式下的特殊样式 */
+        @media (prefers-color-scheme: dark) {
+            .plugin-item:hover {
+                background-color: rgba(255, 255, 255, 0.05);
+            }
+            
+            ::-webkit-scrollbar-track {
+                background: #333;
+            }
+        }
     </style>
 </head>
 <body>
