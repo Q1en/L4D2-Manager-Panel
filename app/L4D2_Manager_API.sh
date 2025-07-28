@@ -129,10 +129,25 @@ function Invoke-PluginInstallation() {
     fi
     echo "--- 开始安装插件 '$pluginName' ---"
     echo "创建文件清单..."
-    find "$pluginPath" -type f -printf "%P\n" > "$receiptPath"
-    echo "复制文件到服务器目录..."
+    (cd "$pluginPath" && find . -type f | sed 's|^\./||') > "$receiptPath"
+    if [ $? -ne 0 ]; then
+        echo "错误! 创建插件清单 '$receiptPath' 失败。"
+        rm -f "$receiptPath"
+        exit 1
+    fi
+    
+    echo "正在将文件移动到服务器目录..."
     rsync -a "$pluginPath/" "$ServerRoot/"
-    echo "--- 插件 '$pluginName' 安装成功! ---"
+    
+    if [ $? -eq 0 ]; then
+        # 成功之后删除源目录
+        rm -rf "$pluginPath"
+        echo "--- 插件 '$pluginName' 安装成功! ---"
+    else
+        echo "--- 错误! 安装插件 '$pluginName' 时文件操作失败。 ---"
+        rm -f "$receiptPath"
+        exit 1
+    fi
 }
 
 function Invoke-PluginUninstallation() {
@@ -142,14 +157,37 @@ function Invoke-PluginUninstallation() {
         echo "错误: 找不到插件清单 '$receiptPath'。无法卸载。"
         exit 1
     fi
+    
     echo "--- 开始卸载插件 '$pluginName' ---"
-    while IFS= read -r file; do
-        [ -z "$file" ] && continue
-        if [ -f "$ServerRoot/$file" ]; then
-            rm -f "$ServerRoot/$file"
-            echo "已删除文件: $ServerRoot/$file"
+    
+    local pluginReclaimFolder="$PluginSourceDir/$pluginName"
+    mkdir -p "$pluginReclaimFolder"
+
+    while IFS= read -r relativePath || [[ -n "$relativePath" ]]; do
+        [ -z "$relativePath" ] && continue
+
+        local serverFile="$ServerRoot/$relativePath"
+        local destinationFile="$pluginReclaimFolder/$relativePath"
+        
+        if [ -f "$serverFile" ]; then
+            # 确保目标目录存在
+            mkdir -p "$(dirname "$destinationFile")"
+            # 移动文件
+            mv "$serverFile" "$destinationFile"
+            # echo "已移回: $destinationFile" # 可以取消注释用于调试
         fi
     done < "$receiptPath"
+
+    # 清理服务器上可能残留的空目录
+    while IFS= read -r relativePath; do
+        [ -z "$relativePath" ] && continue
+        local dirOnServer="$ServerRoot/$(dirname "$relativePath")"
+        # 如果目录存在且为空，则尝试删除
+        if [ -d "$dirOnServer" ] && [ -z "$(ls -A "$dirOnServer")" ]; then
+            rmdir "$dirOnServer" 2>/dev/null
+        fi
+    done < <(sort -r "$receiptPath") # 反向排序，以便先处理子目录
+
     rm -f "$receiptPath"
     echo "--- 插件 '$pluginName' 卸载成功! ---"
 }
