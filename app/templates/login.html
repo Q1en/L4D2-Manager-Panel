@@ -4,35 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L4D2 面板 - 登录</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f0f2f5; }
-        .login-container { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; }
-        h1 { text-align: center; color: #333; margin-bottom: 1.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: .5rem; color: #666; }
-        input { width: 100%; padding: .75rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: .75rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
-        button:hover { background-color: #0056b3; }
-        .error { color: #d93025; text-align: center; margin-top: 1rem; }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="login-container">
-        <h1>L4D2 面板登录</h1>
-        <form method="post">
-            <div class="form-group">
-                <label for="username">用户名</label>
-                <input type="text" id="username" name="username" required>
-            </div>
-            <div class="form-group">
-                <label for="password">密码</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit">登 录</button>
-        </form>
-        {% if error %}
-            <p class="error">{{ error }}</p>
-        {% endif %}
+    <div class="login-wrapper">
+        <div class="login-container">
+            <h1>L4D2 面板登录</h1>
+            <form method="post">
+                <div class="form-group">
+                    <label for="username" class="form-label">用户名</label>
+                    <input type="text" id="username" name="username" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="password" class="form-label">密码</label>
+                    <input type="password" id="password" name="password" class="form-input" required>
+                </div>
+                <button type="submit" class="btn btn-primary">登 录</button>
+            </form>
+            {% if error %}
+                <p class="error">{{ error }}</p>
+            {% endif %}
+        </div>
     </div>
 </body>
 </html>

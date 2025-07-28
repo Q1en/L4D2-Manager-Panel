@@ -4,58 +4,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>L4D2 管理面板 - 插件管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        :root { --main-bg: #f0f2f5; --card-bg: #ffffff; --text-color: #333; --primary-color: #007bff; --green: #28a745; --red: #dc3545; --yellow: #ffc107; --border-color: #dee2e6; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--main-bg); color: var(--text-color); margin: 0; padding: 1.5rem; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-        h1 { color: #1f2937; margin: 0; }
-        .back-btn { background: #6c757d; color: white; padding: 0.5rem 1rem; border-radius: 5px; text-decoration: none; font-weight: 500; }
-        .plugins-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-        .card { background: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 1.5rem; display: flex; flex-direction: column; }
-        .card h2 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem; font-size: 1.25rem; }
-        .list-wrapper { border: 1px solid var(--border-color); border-radius: 5px; display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; }
-        .controls { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #f8f9fa; border: 1px solid var(--border-color); border-radius: 5px 5px 0 0; position: relative; z-index: 1; }
-        .controls label { display: flex; align-items: center; gap: 0.75rem; font-weight: 500; cursor: pointer; }
-        .plugin-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; border: 1px solid var(--border-color); border-radius: 0 0 5px 5px; margin-top: -1px; }
-        .plugin-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid #e5e7eb; cursor: pointer; }
-        .plugin-item:last-child { border-bottom: none; }
-        .plugin-item:hover { background-color: #f8f9fa; }
-        .plugin-item input[type="checkbox"], .controls input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
-        .action-btn { border: none; padding: 0.6rem 1rem; border-radius: 5px; cursor: pointer; font-size: 0.9rem; color: white; font-weight: 500; }
-        .btn-install { background: var(--green); }
-        .btn-uninstall { background: var(--red); }
-    </style>
 </head>
 <body>
 
-    <header>
-        <h1>插件管理</h1>
-        <a href="/" class="back-btn">返回仪表盘</a>
-    </header>
+    <div class="main-container">
+        <header class="page-header">
+            <h1>插件管理</h1>
+            <a href="/" class="btn btn-secondary">
+                <i data-feather="arrow-left" style="width:18px; height:18px;"></i>
+                <span>返回仪表盘</span>
+            </a>
+        </header>
 
-    <div class="plugins-container">
-        <div class="card">
-            <h2>可安装插件 (<span id="availableCount">0</span>)</h2>
-            <div class="controls">
-                <label><input type="checkbox" id="selectAllAvailable"> 全选</label>
-                <button class="action-btn btn-install" id="installSelectedBtn">安装选中项</button>
+        <div class="grid-container plugins-container">
+            <div class="card">
+                <div class="card-header">
+                    <h2>可安装插件 (<span id="availableCount">0</span>)</h2>
+                    <button class="btn btn-primary" id="installSelectedBtn">安装选中项</button>
+                </div>
+                <div class="list-controls" style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="selectAllAvailable"> 全选
+                    </label>
+                </div>
+                <ul id="availableList" class="item-list" style="flex-grow: 1; overflow-y: auto;">
+                    <li>加载中...</li>
+                </ul>
             </div>
-            <ul id="availableList" class="plugin-list"><li>加载中...</li></ul>
-        </div>
 
-        <div class="card">
-            <h2>已安装插件 (<span id="installedCount">0</span>)</h2>
-            <div class="controls">
-                <label><input type="checkbox" id="selectAllInstalled"> 全选</label>
-                <button class="action-btn btn-uninstall" id="uninstallSelectedBtn">卸载选中项</button>
+            <div class="card">
+                <div class="card-header">
+                    <h2>已安装插件 (<span id="installedCount">0</span>)</h2>
+                     <button class="btn btn-danger" id="uninstallSelectedBtn">卸载选中项</button>
+                </div>
+                 <div class="list-controls" style="padding: var(--space-3); border-bottom: 1px solid var(--border-default);">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="selectAllInstalled"> 全选
+                    </label>
+                </div>
+                <ul id="installedList" class="item-list" style="flex-grow: 1; overflow-y: auto;">
+                    <li>加载中...</li>
+                </ul>
             </div>
-            <ul id="installedList" class="plugin-list"><li>加载中...</li></ul>
         </div>
     </div>
 
 <script>
+// --- JavaScript 逻辑 (与原文件基本相同) ---
 document.addEventListener('DOMContentLoaded', () => {
+    feather.replace();
+
+    // DOM 元素
     const availableListEl = document.getElementById('availableList');
     const installedListEl = document.getElementById('installedList');
     const availableCountEl = document.getElementById('availableCount');
@@ -71,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/plugins');
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const textData = await response.text();
-            const data = JSON.parse(textData);
+            const data = JSON.parse(textData); // API返回的是字符串化的JSON
             const plugins = JSON.parse(data);
             renderLists(plugins.available || [], plugins.installed || []);
         } catch (error) {
@@ -92,20 +97,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderPluginList(listEl, plugins, type) {
         listEl.innerHTML = '';
         if (plugins.length === 0) {
-            listEl.innerHTML = `<li>没有${type === 'available' ? '可安装' : '已安装'}的插件。</li>`;
+            listEl.innerHTML = `<li style="padding: var(--space-4); text-align: center; color: var(--text-secondary);">没有${type === 'available' ? '可安装' : '已安装'}的插件。</li>`;
             return;
         }
         plugins.forEach(name => {
             const item = document.createElement('li');
-            item.className = 'plugin-item';
-            item.innerHTML = `<input type="checkbox" data-name="${name}" data-type="${type}"><span>${name}</span>`;
-            item.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'INPUT') {
-                    const checkbox = item.querySelector('input');
-                    checkbox.checked = !checkbox.checked;
-                    updateSelectAllState();
-                }
-            });
+            item.className = 'list-item';
+            item.innerHTML = `<label class="checkbox-label" style="width: 100%;"><input type="checkbox" data-name="${name}" data-type="${type}"><span>${name}</span></label>`;
             listEl.appendChild(item);
         });
     }
@@ -144,10 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const result = await Swal.fire({
             title: '确认批量操作',
-            html: `你确定要对以下 ${selectedPlugins.length} 个插件执行 <b>${action}</b> 操作吗？<br><small>${selectedPlugins.join(', ')}</small>`,
+            html: `你确定要对这 ${selectedPlugins.length} 个插件执行 <b>${action.includes('install') ? '安装' : '卸载'}</b> 操作吗？`,
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: '是的，执行！',
+            confirmButtonText: '是的, 执行!',
             cancelButtonText: '取消'
         });
 

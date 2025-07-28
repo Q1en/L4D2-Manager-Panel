@@ -1,0 +1,260 @@
+/* app/static/style.css */
+
+/* --- 1. 全局与基础设置 --- */
+:root {
+    /* 色彩方案 */
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F8F9FA;
+    --text-primary: #1E1E1E;
+    --text-secondary: #6B7280;
+    --brand-accent: #007AFF;
+    --border-default: #E5E7EB;
+    --status-success: #28A745;
+    --status-danger: #DC3545;
+    --status-warning: #FFC107;
+    --tag-bg-blue: #EBF5FF;
+    --tag-text-blue: #0062CC;
+    --tag-bg-purple: #F3E8FF;
+    --tag-text-purple: #5A298B;
+
+    /* 间距规范 (8px 网格) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    /* 字体 */
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    /* 圆角 */
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-full: 32px;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    margin: 0;
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+/* --- 2. 字体排版 --- */
+h1 { font-size: 28px; font-weight: 700; line-height: 1.4; margin: 0 0 var(--space-5) 0; }
+h2 { font-size: 20px; font-weight: 600; line-height: 1.5; margin: 0; }
+h3 { font-size: 16px; font-weight: 600; line-height: 1.5; }
+p, li { font-size: 16px; line-height: 1.6; color: var(--text-secondary); }
+small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+
+/* --- 3. 布局与容器 --- */
+.main-container {
+    width: 100%;
+    max-width: 1280px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-6);
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: var(--space-5);
+}
+
+/* --- 4. 组件设计 --- */
+
+/* 卡片 (Card) */
+.card {
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-lg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+}
+.card-header {
+    border-bottom: 1px solid var(--border-default);
+    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-5);
+}
+
+/* 按钮 (Button) */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    font-family: var(--font-family);
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-radius: var(--border-radius-full);
+    padding: var(--space-3) var(--space-5);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: var(--text-primary);
+    color: var(--bg-primary);
+}
+.btn-primary:hover { background-color: #333; }
+.btn-primary:active { background-color: #000; }
+
+.btn-secondary {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--border-default);
+}
+.btn-secondary:hover { background-color: var(--bg-secondary); }
+.btn-secondary:active { background-color: #F0F2F5; border-color: #D1D5DB; }
+
+.btn-danger {
+    background-color: var(--status-danger);
+    color: var(--bg-primary);
+}
+.btn-danger:hover { background-color: #c82333; }
+
+.btn:disabled {
+    background-color: #E5E7EB;
+    color: #6B7280;
+    cursor: not-allowed;
+    border-color: transparent;
+}
+.btn-secondary:disabled {
+    background-color: var(--bg-primary);
+    color: #9CA3AF;
+    border-color: var(--border-default);
+}
+
+
+/* 输入框 (Input) */
+.form-group { margin-bottom: var(--space-4); }
+.form-label { display: block; margin-bottom: var(--space-2); font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.form-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--border-radius-full);
+    border: none;
+    background-color: var(--bg-secondary);
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+.form-input:hover { background-color: #F0F2F5; }
+.form-input:focus {
+    background-color: var(--bg-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2), 0 0 0 1px var(--brand-accent);
+}
+
+/* 列表 (List) */
+.item-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border-default);
+}
+.list-item:last-child { border-bottom: none; }
+.item-content { display: flex; align-items: center; gap: var(--space-3); }
+.item-actions { display: flex; gap: var(--space-2); }
+.item-actions .btn { padding: var(--space-1) var(--space-3); font-size: 13px; }
+
+
+/* 状态指示 */
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.status-dot.running { background-color: var(--status-success); }
+.status-dot.stopped { background-color: var(--status-danger); }
+
+/* 登录页特定样式 */
+.login-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    width: 100%;
+}
+.login-container {
+    width: 360px;
+    padding: var(--space-6);
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-lg);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.login-container h1 { text-align: center; }
+.login-container .error {
+    color: var(--status-danger);
+    text-align: center;
+    margin-top: var(--space-4);
+    font-size: 14px;
+}
+.login-container .btn {
+    width: 100%;
+    margin-top: var(--space-2);
+}
+
+/* --- 5. 插件页特定样式 --- */
+.plugins-container .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.plugins-container .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    font-weight: 500;
+}
+.plugins-container .list-item { padding: var(--space-3); }
+.plugins-container .list-item:hover { background-color: var(--bg-secondary); }
+
+
+/* --- 6. 日志模态框 (Modal) --- */
+#logModal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }
+.modal-content { background-color: #1e1e1e; color: #d4d4d4; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; height: 70%; border-radius: 8px; display: flex; flex-direction: column; }
+#logOutput { flex-grow: 1; overflow-y: auto; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; background: #1e1e1e; border: 1px solid #333; padding: 10px; border-radius: 5px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 10px;}
+.close-btn { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+
+
+/* --- 7. 复选框统一样式 --- */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
