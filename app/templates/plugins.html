@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L4D2 管理面板 - 插件管理</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root { --main-bg: #f0f2f5; --card-bg: #ffffff; --text-color: #333; --primary-color: #007bff; --green: #28a745; --red: #dc3545; --yellow: #ffc107; --border-color: #dee2e6; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--main-bg); color: var(--text-color); margin: 0; padding: 1.5rem; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        h1 { color: #1f2937; margin: 0; }
+        .back-btn { background: #6c757d; color: white; padding: 0.5rem 1rem; border-radius: 5px; text-decoration: none; font-weight: 500; }
+        .plugins-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .card { background: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 1.5rem; display: flex; flex-direction: column; }
+        .card h2 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem; font-size: 1.25rem; }
+        .list-wrapper { border: 1px solid var(--border-color); border-radius: 5px; display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; }
+        .controls { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #f8f9fa; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+        .controls label { display: flex; align-items: center; gap: 0.75rem; font-weight: 500; cursor: pointer; }
+        .plugin-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+        .plugin-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid #e5e7eb; cursor: pointer; }
+        .plugin-item:last-child { border-bottom: none; }
+        .plugin-item:hover { background-color: #f8f9fa; }
+        .plugin-item input[type="checkbox"], .controls input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
+        .action-btn { border: none; padding: 0.6rem 1rem; border-radius: 5px; cursor: pointer; font-size: 0.9rem; color: white; font-weight: 500; }
+        .btn-install { background: var(--green); }
+        .btn-uninstall { background: var(--red); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>插件管理</h1>
+        <a href="/" class="back-btn">返回仪表盘</a>
+    </header>
+
+    <div class="plugins-container">
+        <div class="card">
+            <h2>可安装插件 (<span id="availableCount">0</span>)</h2>
+            <div class="controls">
+                <label><input type="checkbox" id="selectAllAvailable"> 全选</label>
+                <button class="action-btn btn-install" id="installSelectedBtn">安装选中项</button>
+            </div>
+            <ul id="availableList" class="plugin-list"><li>加载中...</li></ul>
+        </div>
+
+        <div class="card">
+            <h2>已安装插件 (<span id="installedCount">0</span>)</h2>
+            <div class="controls">
+                <label><input type="checkbox" id="selectAllInstalled"> 全选</label>
+                <button class="action-btn btn-uninstall" id="uninstallSelectedBtn">卸载选中项</button>
+            </div>
+            <ul id="installedList" class="plugin-list"><li>加载中...</li></ul>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const availableListEl = document.getElementById('availableList');
+    const installedListEl = document.getElementById('installedList');
+    const availableCountEl = document.getElementById('availableCount');
+    const installedCountEl = document.getElementById('installedCount');
+    const selectAllAvailable = document.getElementById('selectAllAvailable');
+    const selectAllInstalled = document.getElementById('selectAllInstalled');
+    const installBtn = document.getElementById('installSelectedBtn');
+    const uninstallBtn = document.getElementById('uninstallSelectedBtn');
+
+    // --- 数据获取与渲染 ---
+    async function fetchPlugins() {
+        try {
+            const response = await fetch('/api/plugins');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const textData = await response.text();
+            const data = JSON.parse(textData);
+            const plugins = JSON.parse(data);
+            renderLists(plugins.available || [], plugins.installed || []);
+        } catch (error) {
+            console.error("无法获取插件列表:", error);
+            availableListEl.innerHTML = '<li>加载失败</li>';
+            installedListEl.innerHTML = '<li>加载失败</li>';
+        }
+    }
+
+    function renderLists(available, installed) {
+        renderPluginList(availableListEl, available, 'available');
+        renderPluginList(installedListEl, installed, 'installed');
+        availableCountEl.textContent = available.length;
+        installedCountEl.textContent = installed.length;
+        updateSelectAllState();
+    }
+    
+    function renderPluginList(listEl, plugins, type) {
+        listEl.innerHTML = '';
+        if (plugins.length === 0) {
+            listEl.innerHTML = `<li>没有${type === 'available' ? '可安装' : '已安装'}的插件。</li>`;
+            return;
+        }
+        plugins.forEach(name => {
+            const item = document.createElement('li');
+            item.className = 'plugin-item';
+            item.innerHTML = `<input type="checkbox" data-name="${name}" data-type="${type}"><span>${name}</span>`;
+            item.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT') {
+                    const checkbox = item.querySelector('input');
+                    checkbox.checked = !checkbox.checked;
+                    updateSelectAllState();
+                }
+            });
+            listEl.appendChild(item);
+        });
+    }
+
+    // --- 事件处理 ---
+    selectAllAvailable.addEventListener('change', () => toggleSelectAll('available', selectAllAvailable.checked));
+    selectAllInstalled.addEventListener('change', () => toggleSelectAll('installed', selectAllInstalled.checked));
+    
+    installBtn.addEventListener('click', () => handleBatchAction('install_plugin', 'available'));
+    uninstallBtn.addEventListener('click', () => handleBatchAction('uninstall_plugin', 'installed'));
+    
+    document.querySelector('.plugins-container').addEventListener('change', (e) => {
+        if (e.target.matches('input[type="checkbox"]')) {
+            updateSelectAllState();
+        }
+    });
+
+    function toggleSelectAll(type, isChecked) {
+        document.querySelectorAll(`input[data-type="${type}"]`).forEach(cb => cb.checked = isChecked);
+    }
+
+    function updateSelectAllState() {
+        const availableCheckboxes = document.querySelectorAll('input[data-type="available"]');
+        const installedCheckboxes = document.querySelectorAll('input[data-type="installed"]');
+        selectAllAvailable.checked = availableCheckboxes.length > 0 && Array.from(availableCheckboxes).every(cb => cb.checked);
+        selectAllInstalled.checked = installedCheckboxes.length > 0 && Array.from(installedCheckboxes).every(cb => cb.checked);
+    }
+
+    async function handleBatchAction(action, type) {
+        const selectedPlugins = Array.from(document.querySelectorAll(`input[data-type="${type}"]:checked`)).map(cb => cb.dataset.name);
+
+        if (selectedPlugins.length === 0) {
+            Swal.fire('未选择', '请至少选择一个插件。', 'info');
+            return;
+        }
+
+        const result = await Swal.fire({
+            title: '确认批量操作',
+            html: `你确定要对以下 ${selectedPlugins.length} 个插件执行 <b>${action}</b> 操作吗？<br><small>${selectedPlugins.join(', ')}</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '是的，执行！',
+            cancelButtonText: '取消'
+        });
+
+        if (!result.isConfirmed) return;
+
+        Swal.fire({ title: '正在批量处理...', html: `已完成 0 / ${selectedPlugins.length}`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        let successCount = 0;
+        let errorList = [];
+
+        for (const pluginName of selectedPlugins) {
+            try {
+                const response = await fetch('/api/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, payload: pluginName })
+                });
+                const resData = await response.json();
+                if (!response.ok || !resData.success) throw new Error(resData.message || `处理 ${pluginName} 失败`);
+                successCount++;
+                Swal.update({ html: `已完成 ${successCount} / ${selectedPlugins.length}` });
+            } catch (error) {
+                errorList.push(`${pluginName}: ${error.message}`);
+            }
+        }
+        
+        if (errorList.length === 0) {
+            Swal.fire('操作完成', `成功处理了 ${successCount} 个插件。`, 'success');
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: '部分操作失败',
+                html: `成功 ${successCount} 个, 失败 ${errorList.length} 个。<br><br><b>错误详情:</b><br><pre style="text-align: left; max-height: 150px; overflow-y: auto;">${errorList.join('\n')}</pre>`
+            });
+        }
+
+        fetchPlugins();
+    }
+
+    fetchPlugins();
+});
+</script>
+
+</body>
+</html>

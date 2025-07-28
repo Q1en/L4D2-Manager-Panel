@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>L4D2 管理面板</title>
+    <title>L4D2 管理面板 - 仪表盘</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root { --main-bg: #f0f2f5; --card-bg: #ffffff; --text-color: #333; --primary-color: #007bff; --green: #28a745; --red: #dc3545; --yellow: #ffc107; --border-color: #dee2e6; }
@@ -19,11 +19,12 @@
         .status-item span { font-size: 1.5rem; font-weight: 600; display: block; }
         .status-label-true { color: var(--green); }
         .status-label-false { color: var(--red); }
-        .action-btn { background: var(--primary-color); color: white; border: none; padding: 0.8rem 1.2rem; border-radius: 5px; cursor: pointer; font-size: 1rem; transition: background-color 0.2s; width: 100%; }
+        .action-btn { background: var(--primary-color); color: white; border: none; padding: 0.8rem 1.2rem; border-radius: 5px; cursor: pointer; font-size: 1rem; transition: background-color 0.2s; width: 100%; text-align: center; box-sizing: border-box; }
         .action-btn:hover { background-color: #0056b3; }
-        .instance-list, .plugin-list { list-style: none; padding: 0; margin: 0; }
-        .instance-item, .plugin-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
-        .instance-item:last-child, .plugin-item:last-child { border-bottom: none; }
+        a.action-btn { text-decoration: none; display: block; }
+        .instance-list { list-style: none; padding: 0; margin: 0; }
+        .instance-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+        .instance-item:last-child { border-bottom: none; }
         .instance-info { display: flex; align-items: center; gap: 0.75rem; }
         .status-dot { width: 12px; height: 12px; border-radius: 50%; }
         .status-dot.running { background-color: var(--green); }
@@ -33,9 +34,6 @@
         .item-actions button { font-size: 0.8rem; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; border: none; color: white; }
         .btn-start { background: var(--green); }
         .btn-stop { background: var(--red); }
-        .btn-install { background: var(--primary-color); }
-        .btn-uninstall { background: var(--yellow); color: #333;}
-        
         #logModal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }
         .modal-content { background-color: #1e1e1e; color: #d4d4d4; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; height: 70%; border-radius: 8px; display: flex; flex-direction: column; }
         #logOutput { flex-grow: 1; overflow-y: auto; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; background: #1e1e1e; border: 1px solid #333; padding: 10px; border-radius: 5px; }
@@ -62,6 +60,14 @@
                     <span id="smStatus" class="status-label-false">未知</span>
                     SourceMod
                 </div>
+                 <div class="status-item">
+                    <span id="instanceCount" class="status-label-false">0</span>
+                    运行中实例
+                </div>
+                <div class="status-item">
+                    <span id="pluginCount" class="status-label-false">0</span>
+                    已安装插件
+                </div>
             </div>
             <button id="deployBtn" class="action-btn">部署 / 更新服务器文件</button>
 	        <button id="installSmBtn" class="action-btn" style="margin-top: 1rem; background-color: var(--green);">安装 / 更新 SourceMod & MetaMod</button>
@@ -75,12 +81,10 @@
         </div>
 
         <div class="card">
-            <h2>插件管理</h2>
-            <h3>可安装插件 (<span id="availablePluginCount">0</span>)</h3>
-            <ul id="availablePluginList" class="plugin-list"><li>加载中...</li></ul>
-            <h3 style="margin-top: 1.5rem;">已安装插件 (<span id="installedPluginCount">0</span>)</h3>
-            <ul id="installedPluginList" class="plugin-list"><li>加载中...</li></ul>
-        </div>
+            <h2>插件管理 & 其他</h2>
+            <p>在这里管理和批量安装/卸载服务器插件。</p>
+            <a href="/plugins" class="action-btn" style="margin-top: 1rem; background-color: var(--yellow); color: #333;">前往插件管理页面</a>
+            </div>
     </div>
     
     <div id="logModal">
@@ -99,10 +103,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const serverStatusEl = document.getElementById('serverStatus');
     const smStatusEl = document.getElementById('smStatus');
     const instanceListEl = document.getElementById('instanceList');
-    const availablePluginListEl = document.getElementById('availablePluginList');
-    const installedPluginListEl = document.getElementById('installedPluginList');
-    const availablePluginCountEl = document.getElementById('availablePluginCount');
-    const installedPluginCountEl = document.getElementById('installedPluginCount');
+    const instanceCountEl = document.getElementById('instanceCount');
+    const pluginCountEl = document.getElementById('pluginCount');
     
     const logModal = document.getElementById('logModal');
     const logOutput = document.getElementById('logOutput');
@@ -121,12 +123,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        // 后端返回的 JSON 是一个字符串，需要再次解析
         const textData = await response.text();
         try {
             return JSON.parse(JSON.parse(textData));
         } catch (e) {
-             // 如果第一次解析失败，说明可能已经是JSON对象了
              return JSON.parse(textData);
         }
     }
@@ -143,10 +143,14 @@ document.addEventListener('DOMContentLoaded', () => {
             instanceListEl.innerHTML = '';
             if (Object.keys(data).length === 0) {
                  instanceListEl.innerHTML = '<li>没有预定义的服务器实例。</li>';
+                 instanceCountEl.textContent = '0';
                  return;
             }
+            
+            let runningCount = 0;
             for (const name in data) {
                 const inst = data[name];
+                if (inst.running) runningCount++;
                 const item = document.createElement('li');
                 item.className = 'instance-item';
                 item.innerHTML = `
@@ -166,34 +170,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 instanceListEl.appendChild(item);
             }
+            instanceCountEl.textContent = runningCount;
+            instanceCountEl.className = runningCount > 0 ? 'status-label-true' : 'status-label-false';
+
         }).catch(err => console.error("无法获取实例列表:", err));
     }
 
     function updatePlugins() {
         fetchData('/api/plugins').then(data => {
-            renderPluginList(availablePluginListEl, availablePluginCountEl, data.available, 'install');
-            renderPluginList(installedPluginListEl, installedPluginCountEl, data.installed, 'uninstall');
+            pluginCountEl.textContent = data.installed.length;
         }).catch(err => console.error("无法获取插件列表:", err));
-    }
-    
-    function renderPluginList(listEl, countEl, plugins, action) {
-        listEl.innerHTML = '';
-        countEl.textContent = plugins.length;
-        if (plugins.length === 0) {
-            listEl.innerHTML = `<li>没有${action === 'install' ? '可安装' : '已安装'}的插件。</li>`;
-            return;
-        }
-        plugins.forEach(name => {
-            const item = document.createElement('li');
-            item.className = 'plugin-item';
-            item.innerHTML = `
-                <span>${name}</span>
-                <div class="item-actions">
-                    <button class="btn-${action}" onclick="handleAction('${action}_plugin', '${name}')">${action === 'install' ? '安装' : '卸载'}</button>
-                </div>
-            `;
-            listEl.appendChild(item);
-        });
     }
 
     function updateStatusLabel(el, condition, trueText, falseText) {
@@ -234,8 +220,11 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshAll();
         }
     };
-
-    document.getElementById('deployBtn').addEventListener('click', async () => {
+    
+    document.getElementById('deployBtn').addEventListener('click', () => {
+        // ... 此处代码与原文件相同，省略以保持简洁 ...
+    });
+     document.getElementById('deployBtn').addEventListener('click', async () => {
          const result = await Swal.fire({
             title: `确认部署/更新服务器吗?`,
             text: `这将执行 SteamCMD，可能需要一些时间。`,
@@ -249,10 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         logModal.style.display = 'block';
         logOutput.textContent = '正在连接到服务器以获取日志...\n';
         
-        const eventSource = new EventSource('/api/action?action=deploy_server');
-        
-        // 我们需要一种方法来发送POST请求并接收EventStream，标准EventSource不支持
-        // 这里简化处理，让后端通过GET请求也能触发这个特定的流式任务
+        // 简化处理，直接通过POST请求获取流式响应
         fetch('/api/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -266,21 +252,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         refreshAll();
                         return;
                     }
-                    // 将 Uint8Array 转换为字符串
                     const chunk = new TextDecoder().decode(value);
-                    // SSE "data: " 前缀处理
                     const lines = chunk.split('\n');
                     lines.forEach(line => {
                         if (line.startsWith('data: ')) {
                             logOutput.textContent += line.substring(6) + '\n';
+                            logOutput.scrollTop = logOutput.scrollHeight;
                         }
                     });
-
-                    logOutput.scrollTop = logOutput.scrollHeight;
                     readStream();
                 });
             }
             readStream();
+        }).catch(err => {
+            logOutput.textContent += `\n--- 发生错误: ${err.message} ---`;
         });
     });
 
