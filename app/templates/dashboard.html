@@ -127,6 +127,46 @@
             color: var(--text-color);
         }
         
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card-header h2 {
+            margin: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        
+        .refresh-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border-color: var(--primary-color);
+            background-color: var(--text-color);
+        }
+        
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+        
         .status-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -427,13 +467,17 @@
         <button class="nav-btn active" data-page="system">系统状态</button>
         <button class="nav-btn" data-page="instances">服务器实例</button>
         <button class="nav-btn" data-page="plugins">插件管理</button>
+        <a href="/logs" class="nav-btn">操作日志</a>
     </nav>
 
     <!-- 系统状态页面 -->
     <div id="systemPage" class="page-content active">
         <div class="container">
             <div class="card">
-                <h2>系统状态 & 核心操作</h2>
+                <div class="card-header">
+                    <h2>系统状态 & 核心操作</h2>
+                    <button class="refresh-btn" onclick="refreshStatus()">🔄 刷新</button>
+                </div>
                 <div class="status-grid">
                     <div class="status-item">
                         <span id="serverStatus" class="status-label-false">未知</span>
@@ -462,7 +506,10 @@
     <div id="instancesPage" class="page-content">
         <div class="container">
             <div class="card">
-                <h2>服务器实例</h2>
+                <div class="card-header">
+                    <h2>服务器实例</h2>
+                    <button class="refresh-btn" onclick="refreshInstances()">🔄 刷新</button>
+                </div>
                 <ul id="instanceList" class="instance-list">
                     <li>加载中...</li>
                 </ul>
@@ -521,6 +568,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(targetPage + 'Page').classList.add('active');
         });
     });
+    
+    // 移除自动刷新功能
+    closeBtn.onclick = () => { logModal.style.display = 'none'; };
+    window.onclick = (event) => {
+        if (event.target == logModal) {
+            logModal.style.display = 'none';
+        }
+    };
 
     closeBtn.onclick = () => { logModal.style.display = 'none'; };
     window.onclick = (event) => {
@@ -531,23 +586,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 数据获取与渲染 ---
     async function fetchData(url) {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const textData = await response.text();
         try {
-            return JSON.parse(JSON.parse(textData));
-        } catch (e) {
-             return JSON.parse(textData);
+            const response = await fetch(url);
+            const textData = await response.text();
+            
+            if (!response.ok) {
+                // 尝试解析错误响应
+                try {
+                    const errorData = JSON.parse(textData);
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                } catch (parseError) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            }
+            
+            try {
+                // 尝试双重解析（兼容旧格式）
+                return JSON.parse(JSON.parse(textData));
+            } catch (e) {
+                // 单次解析
+                return JSON.parse(textData);
+            }
+        } catch (error) {
+            console.error(`获取数据失败 (${url}):`, error);
+            throw error;
         }
+    }
+    
+    // 显示错误消息
+    function showErrorMessage(title, message) {
+        Swal.fire({
+            title: title,
+            text: message,
+            icon: 'error',
+            confirmButtonText: '确定'
+        });
     }
 
     function updateStatus() {
         fetchData('/api/status').then(data => {
             updateStatusLabel(serverStatusEl, data.serverDeployed, '已部署', '未部署');
             updateStatusLabel(smStatusEl, data.smInstalled, '已安装', '未安装');
-        }).catch(err => console.error("无法获取状态:", err));
+        }).catch(err => {
+            console.error("无法获取状态:", err);
+            showErrorMessage('获取系统状态失败', '错误: 此脚本需要 Bash 4.0 或更高版本才能运行');
+            // 设置为错误状态
+            updateStatusLabel(serverStatusEl, false, '已部署', '获取失败');
+            updateStatusLabel(smStatusEl, false, '已安装', '获取失败');
+        });
     }
 
     function updateInstances() {
@@ -585,18 +671,52 @@ document.addEventListener('DOMContentLoaded', () => {
             instanceCountEl.textContent = runningCount;
             instanceCountEl.className = runningCount > 0 ? 'status-label-true' : 'status-label-false';
 
-        }).catch(err => console.error("无法获取实例列表:", err));
+        }).catch(err => {
+            console.error("无法获取实例列表:", err);
+            showErrorMessage('获取服务器实例失败', err.message || '网络错误或服务器内部错误');
+            instanceListEl.innerHTML = '<li style="color: var(--red);">获取实例列表失败</li>';
+            instanceCountEl.textContent = '错误';
+            instanceCountEl.className = 'status-label-false';
+        });
     }
 
     function updatePlugins() {
         fetchData('/api/plugins').then(data => {
             pluginCountEl.textContent = data.installed.length;
-        }).catch(err => console.error("无法获取插件列表:", err));
+        }).catch(err => {
+            console.error("无法获取插件列表:", err);
+            showErrorMessage('获取插件列表失败', err.message || '网络错误或服务器内部错误');
+            pluginCountEl.textContent = '错误';
+            pluginCountEl.className = 'status-label-false';
+        });
     }
 
     function updateStatusLabel(el, condition, trueText, falseText) {
         el.textContent = condition ? trueText : falseText;
         el.className = condition ? 'status-label-true' : 'status-label-false';
+    }
+
+    // 手动刷新函数
+    function refreshStatus() {
+        updateStatus();
+        Swal.fire({
+            position: 'top-end',
+            icon: 'success',
+            title: '系统状态已刷新',
+            showConfirmButton: false,
+            timer: 1500
+        });
+    }
+
+    function refreshInstances() {
+        updateInstances();
+        Swal.fire({
+            position: 'top-end',
+            icon: 'success',
+            title: '实例列表已刷新',
+            showConfirmButton: false,
+            timer: 1500
+        });
     }
 
     // --- 事件处理 ---
@@ -701,6 +821,33 @@ document.addEventListener('DOMContentLoaded', () => {
         updateInstances();
         updatePlugins();
     }
+    
+    // 单独刷新系统状态
+    window.refreshStatus = function() {
+        updateStatus();
+        updatePlugins();
+        // 显示刷新提示
+        Swal.fire({
+            title: '刷新完成',
+            text: '系统状态已更新',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+        });
+    };
+    
+    // 单独刷新服务器实例
+    window.refreshInstances = function() {
+        updateInstances();
+        // 显示刷新提示
+        Swal.fire({
+            title: '刷新完成',
+            text: '服务器实例列表已更新',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+        });
+    };
 
     // 页面加载时和之后每10秒刷新一次数据
     refreshAll();
