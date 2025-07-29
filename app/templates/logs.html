@@ -125,7 +125,8 @@ function displayLogs(logs) {
         const timestamp = new Date(log.timestamp).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
         const statusClass = log.status;
         const userInfo = (log.user_info && log.user_info.ip_address) ? log.user_info.ip_address : 'N/A';
-        const details = formatDetails(log.details);
+        const fullDetails = JSON.stringify(log.details, null, 2);
+        const errorMessage = log.error_message ? `<br><strong style="color: var(--status-danger);">错误:</strong> ${escapeHtml(log.error_message)}` : '';
 
         tableHTML += `
             <tr>
@@ -133,7 +134,10 @@ function displayLogs(logs) {
                 <td>${getActionDisplayName(log.action)}</td>
                 <td><span class="status-badge ${statusClass}">${log.status}</span></td>
                 <td>${userInfo}</td>
-                <td><pre class="cell-pre">${details}</pre></td>
+                <td class="log-details" title="点击查看详情" onclick="showFullLogDetails(this)">
+                    ${formatDetails(log.details)}${errorMessage}
+                    <pre style="display: none;">${escapeHtml(fullDetails)}</pre>
+                </td>
             </tr>
         `;
     });
@@ -150,10 +154,26 @@ function getActionDisplayName(action) {
     return actionNames[action] || action;
 }
 
-function escapeHtml(unsafe) {
-    if (typeof unsafe !== 'string') {
-        return '';
+function formatDetails(details) {
+    if (!details) return 'N/A';
+    if (details.endpoint) {
+        return `API: ${details.method} ${details.endpoint}`;
     }
+    if (details.script_args) {
+        return `脚本: ${details.script_args.join(' ')}`;
+    }
+    if (details.username) {
+        return `用户: ${details.username}`;
+    }
+    if (details.message) {
+        return details.message;
+    }
+    const summary = JSON.stringify(details);
+    return summary.length > 80 ? summary.substring(0, 80) + '...' : summary;
+}
+
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return '';
     return unsafe
          .replace(/&/g, "&amp;")
          .replace(/</g, "&lt;")
@@ -162,10 +182,13 @@ function escapeHtml(unsafe) {
          .replace(/'/g, "&#039;");
 }
 
-function formatDetails(details) {
-    // 格式化为易读的JSON，并进行HTML转义
-    const formattedJson = JSON.stringify(details, null, 2);
-    return escapeHtml(formattedJson);
+function showFullLogDetails(element) {
+    const details = element.querySelector('pre').innerHTML;
+    Swal.fire({
+        title: '日志详情',
+        html: `<pre style="text-align: left; white-space: pre-wrap; word-break: break-all;">${details}</pre>`,
+        confirmButtonText: '关闭'
+    });
 }
 
 async function clearLogs() {

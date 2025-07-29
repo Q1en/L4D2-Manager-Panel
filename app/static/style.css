@@ -289,7 +289,7 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
 
 .data-table td {
     padding: var(--space-3);
-    vertical-align: top;
+    vertical-align: middle;
     font-size: 14px;
 }
 
@@ -306,13 +306,12 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     background-color: var(--bg-secondary);
 }
 
-/* 为长内容单元格设置强制换行 */
-.data-table .cell-pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-all;
-    font-size: 13px;
-    font-family: 'Courier New', Courier, monospace;
+.log-details {
+    cursor: pointer;
+    max-width: 350px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* 状态标签样式 */
