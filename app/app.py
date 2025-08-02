@@ -15,12 +15,8 @@ SCRIPT_PATH = './L4D2_Manager_API.sh'
 SERVER_ROOT = '/home/steam/l4d2server'
 app.config['UPLOAD_FOLDER'] = SERVER_ROOT
 
-# --- 辅助函数：运行脚本 (重构) ---
+# --- 辅助函数：运行脚本 ---
 def run_script(args, payload_stdin=None):
-    """
-    一个更健壮的脚本运行器。
-    不再假设输出是JSON，而是返回一个包含执行结果的字典。
-    """
     command = ['bash', SCRIPT_PATH] + args
     logger.log_script_execution(args, True, f"Executing command: {' '.join(command)}")
 
