@@ -8,7 +8,7 @@
 
 # --- Bash 版本检查 ---
 if ((BASH_VERSINFO[0] < 4)); then
-    echo "错误: 此脚本需要 Bash 4.0 或更高版本才能运行。"
+    echo "错误: 此脚本需要 Bash 4.0 或更高版本才能运行。" >&2
     exit 1
 fi
 
@@ -42,7 +42,7 @@ ReceiptsDir="$ScriptDir/Installed_Receipts"
 InstallerDir="$ScriptDir/SourceMod_Installers"
 
 # 确保目录存在
-mkdir -p "$PluginSourceDir" "$ReceiptsDir" "$InstallerDir"
+mkdir -p "$PluginSourceDir" "$ReceiptsDir" "$InstallerDir" "$ServerRoot"
 
 # --- 核心功能函数 ---
 
@@ -58,8 +58,6 @@ function Deploy-L4D2Server_NonInteractive() {
         rm "$SteamCMDDir/steamcmd_linux.tar.gz"
     fi
 
-    mkdir -p "$ServerRoot"
-
     # 优先使用环境变量中的用户名和密码
     if [ -n "$STEAM_USER" ] && [ -n "$STEAM_PASSWORD" ]; then
         echo "使用账户: $STEAM_USER"
@@ -73,7 +71,7 @@ function Deploy-L4D2Server_NonInteractive() {
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         echo "--- L4D2 服务器文件部署/更新成功! ---"
     else
-        echo "--- SteamCMD 执行失败，请检查以上日志。 ---"
+        echo "--- SteamCMD 执行失败，请检查以上日志。 ---" >&2
         return 1
     fi
 }
@@ -81,14 +79,14 @@ function Deploy-L4D2Server_NonInteractive() {
 function Start-L4D2ServerInstance_NonInteractive() {
     local instanceName="$1"
     if [ ! -v "ServerInstances[$instanceName]" ]; then
-        echo "错误: 未在配置中找到名为 '$instanceName' 的实例。"
+        echo "错误: 未在配置中找到名为 '$instanceName' 的实例。" >&2
         exit 1
     fi
     eval "${ServerInstances[$instanceName]}" # 加载实例配置
 
     local session_name="l4d2_manager_${instanceName}"
     if screen -ls | grep -q "\.$session_name"; then
-        echo "错误: 名为 '$session_name' 的 screen 会话已在运行。"
+        echo "错误: 名为 '$session_name' 的 screen 会话已在运行。" >&2
         exit 1
     fi
 
@@ -102,7 +100,7 @@ function Start-L4D2ServerInstance_NonInteractive() {
     if screen -ls | grep -q "\.$session_name"; then
         echo "成功! 实例 '$instanceName' 已在 screen 会话 '$session_name' 中启动。"
     else
-        echo "错误: 启动服务器失败。请检查 screen 和服务器文件是否正常。"
+        echo "错误: 启动服务器失败。请检查 screen 和服务器文件是否正常。" >&2
         exit 1
     fi
 }
@@ -111,7 +109,7 @@ function Stop-L4D2ServerInstance_NonInteractive() {
     local instanceName="$1"
     local session_name="l4d2_manager_${instanceName}"
     if ! screen -ls | grep -q "\.$session_name"; then
-        echo "错误: 未找到名为 '$session_name' 的 screen 会话。"
+        echo "错误: 未找到名为 '$session_name' 的 screen 会话。" >&2
         exit 1
     fi
     echo "正在向会话 '$session_name' 发送 quit 指令..."
@@ -124,14 +122,14 @@ function Invoke-PluginInstallation() {
     local pluginPath="$PluginSourceDir/$pluginName"
     local receiptPath="$ReceiptsDir/$pluginName.receipt"
     if [ ! -d "$pluginPath" ]; then
-      echo "错误: 找不到插件源目录 '$pluginPath'。"
+      echo "错误: 找不到插件源目录 '$pluginPath'。" >&2
       exit 1
     fi
     echo "--- 开始安装插件 '$pluginName' ---"
     echo "创建文件清单..."
     (cd "$pluginPath" && find . -type f | sed 's|^\./||') > "$receiptPath"
     if [ $? -ne 0 ]; then
-        echo "错误! 创建插件清单 '$receiptPath' 失败。"
+        echo "错误! 创建插件清单 '$receiptPath' 失败。" >&2
         rm -f "$receiptPath"
         exit 1
     fi
@@ -144,7 +142,7 @@ function Invoke-PluginInstallation() {
         rm -rf "$pluginPath"
         echo "--- 插件 '$pluginName' 安装成功! ---"
     else
-        echo "--- 错误! 安装插件 '$pluginName' 时文件操作失败。 ---"
+        echo "--- 错误! 安装插件 '$pluginName' 时文件操作失败。 ---" >&2
         rm -f "$receiptPath"
         exit 1
     fi
@@ -154,7 +152,7 @@ function Invoke-PluginUninstallation() {
     local pluginName="$1"
     local receiptPath="$ReceiptsDir/$pluginName.receipt"
     if [ ! -f "$receiptPath" ]; then
-        echo "错误: 找不到插件清单 '$receiptPath'。无法卸载。"
+        echo "错误: 找不到插件清单 '$receiptPath'。无法卸载。" >&2
         exit 1
     fi
     
@@ -174,7 +172,6 @@ function Invoke-PluginUninstallation() {
             mkdir -p "$(dirname "$destinationFile")"
             # 移动文件
             mv "$serverFile" "$destinationFile"
-            # echo "已移回: $destinationFile" # 可以取消注释用于调试
         fi
     done < "$receiptPath"
 
@@ -182,11 +179,10 @@ function Invoke-PluginUninstallation() {
     while IFS= read -r relativePath; do
         [ -z "$relativePath" ] && continue
         local dirOnServer="$ServerRoot/$(dirname "$relativePath")"
-        # 如果目录存在且为空，则尝试删除
         if [ -d "$dirOnServer" ] && [ -z "$(ls -A "$dirOnServer")" ]; then
             rmdir "$dirOnServer" 2>/dev/null
         fi
-    done < <(sort -r "$receiptPath") # 反向排序，以便先处理子目录
+    done < <(sort -r "$receiptPath")
 
     rm -f "$receiptPath"
     echo "--- 插件 '$pluginName' 卸载成功! ---"
@@ -194,7 +190,6 @@ function Invoke-PluginUninstallation() {
 
 function Install-SourceModAndMetaMod_NonInteractive() {
     echo "--- 开始安装 SourceMod & MetaMod ---"
-    # 确保安装目录存在
     mkdir -p "$InstallerDir"
     
     local metamod_tar
@@ -204,16 +199,15 @@ function Install-SourceModAndMetaMod_NonInteractive() {
         echo "发现 MetaMod: $(basename "$metamod_tar")"
         if tar -xzf "$metamod_tar" -C "$L4d2Dir"; then
             echo "MetaMod 解压完成。"
-            
-            # 创建 metamod.vdf
             mkdir -p "$L4d2Dir/addons"
             echo -e "\"Plugin\"\n{\n\t\"file\"\t\"addons/metamod/bin/server\"\n}" > "$L4d2Dir/addons/metamod.vdf"
             echo "'metamod.vdf' 创建成功。"
         else
-            echo "错误: 解压 MetaMod 时出错。"
+            echo "错误: 解压 MetaMod 时出错。" >&2
+            return 1
         fi
     else
-        echo "警告: 在 '$InstallerDir' 中未找到 MetaMod 安装包 (mmsource-*.tar.gz)。"
+        echo "警告: 在 '$InstallerDir' 中未找到 MetaMod 安装包 (mmsource-*.tar.gz)。" >&2
     fi
     
     local sourcemod_tar
@@ -224,13 +218,19 @@ function Install-SourceModAndMetaMod_NonInteractive() {
         if tar -xzf "$sourcemod_tar" -C "$L4d2Dir"; then
             echo "SourceMod 解压完成。"
         else
-            echo "错误: 解压 SourceMod 时出错。"
+            echo "错误: 解压 SourceMod 时出错。" >&2
+            return 1
         fi
     else
-        echo "警告: 在 '$InstallerDir' 中未找到 SourceMod 安装包 (sourcemod-*.tar.gz)。"
+        echo "警告: 在 '$InstallerDir' 中未找到 SourceMod 安装包 (sourcemod-*.tar.gz)。" >&2
     fi
     
     echo "--- 安装流程执行完毕 ---"
+}
+
+# --- JSON生成辅助函数 ---
+json_escape() {
+    printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
 }
 
 # --- API 调用入口 ---
@@ -243,11 +243,10 @@ case "$ACTION" in
         sm_installed="false"
         if [ -f "$ServerRoot/srcds_run" ]; then server_deployed="true"; fi
         if [ -f "$L4d2Dir/addons/metamod.vdf" ]; then sm_installed="true"; fi
-        echo "{\"serverDeployed\": $server_deployed, \"smInstalled\": $sm_installed}"
+        echo "{\"serverDeployed\": $server_deployed, \"smInstalled\": $sm_installed, \"success\": true}"
         ;;
 
     get_instances)
-        # 输出所有定义的实例及其运行状态
         json="{"
         first=true
         for name in "${!ServerInstances[@]}"; do
@@ -256,7 +255,7 @@ case "$ACTION" in
             if screen -ls | grep -q "\.$session_name"; then
                 running="true"
             fi
-            eval "${ServerInstances[$name]}" # 加载端口等信息
+            eval "${ServerInstances[$name]}"
             if ! $first; then json+=","; fi
             json+="\"$name\": {\"port\": \"$Port\", \"hostname\": \"$HostName\", \"map\": \"$StartMap\", \"maxplayers\": \"$MaxPlayers\", \"running\": $running}"
             first=false
@@ -266,13 +265,11 @@ case "$ACTION" in
         ;;
 
     get_plugins)
-        # 输出可用和已安装的插件列表
         available="["
         first=true
         for d in "$PluginSourceDir"/*/; do
             [ -d "$d" ] || continue
             pname=$(basename "$d")
-            # 只有不在收据里的才是“可安装”
             if [ ! -f "$ReceiptsDir/$pname.receipt" ]; then
                 if ! $first; then available+=","; fi
                 available+="\"$pname\""
@@ -291,7 +288,7 @@ case "$ACTION" in
             first=false
         done
         installed+="]"
-
+        
         echo "{\"available\": $available, \"installed\": $installed}"
         ;;
     
@@ -314,12 +311,169 @@ case "$ACTION" in
     uninstall_plugin)
         Invoke-PluginUninstallation "$1"
         ;;
+        
     install_sourcemod)
         Install-SourceModAndMetaMod_NonInteractive
         ;;
+    
+    # --- 文件管理指令 ---
+    list_files)
+        path="$1"
+        target_path="$ServerRoot/$path"
+        if [[ "$target_path" != "$ServerRoot"* ]]; then
+            echo "错误: 无效路径" >&2; exit 1
+        fi
+        if [ ! -d "$target_path" ]; then
+            echo "{\"success\": false, \"error\": \"目录不存在: $path\"}" >&2; exit 1
+        fi
+        
+        json="{\"path\": $(json_escape "$path"), \"files\": ["
+        first=true
+        shopt -s nullglob
+        for f in "$target_path"/*; do
+            if ! $first; then json+=","; fi
+            first=false
+            
+            filename=$(basename "$f")
+            filesize=$(du -sh "$f" | awk '{print $1}')
+            filetype="file"
+            if [ -d "$f" ]; then filetype="directory"; fi
+            modtime=$(date -r "$f" +"%Y-%m-%d %H:%M:%S")
 
+            json+="{\"name\": $(json_escape "$filename"), \"size\": \"$filesize\", \"type\": \"$filetype\", \"mtime\": \"$modtime\"}"
+        done
+        json+="], \"success\": true}"
+        echo "$json"
+        ;;
+
+    get_file_content)
+        path="$1"
+        target_file="$ServerRoot/$path"
+        if [[ "$target_file" != "$ServerRoot"* ]]; then
+            echo "错误: 无效路径" >&2; exit 1
+        fi
+        if [ ! -f "$target_file" ]; then
+            echo "错误: 文件不存在" >&2; exit 1
+        fi
+        cat "$target_file"
+        ;;
+
+    save_file_content)
+        path="$1"
+        target_file="$ServerRoot/$path"
+        if [[ "$target_file" != "$ServerRoot"* ]]; then
+            echo "错误: 无效路径" >&2; exit 1
+        fi
+        if cat > "$target_file"; then
+            echo "文件 '$path' 已保存。"
+        else
+            echo "错误: 写入文件 '$path' 失败。" >&2
+            exit 1
+        fi
+        ;;
+
+    delete_path)
+        path="$1"
+        target_path="$ServerRoot/$path"
+        if [[ "$target_path" != "$ServerRoot"* ]] || [[ -z "$path" ]]; then
+            echo "错误: 无效或危险的路径" >&2; exit 1
+        fi
+        if [ ! -e "$target_path" ]; then
+            echo "错误: 路径不存在" >&2; exit 1
+        fi
+        if rm -rf "$target_path"; then
+            echo "路径 '$path' 已被删除。"
+        else
+            echo "错误: 删除路径 '$path' 失败。" >&2
+            exit 1
+        fi
+        ;;
+
+    create_folder)
+        path="$1"
+        target_path="$ServerRoot/$path"
+        if [[ "$target_path" != "$ServerRoot"* ]]; then
+            echo "错误: 无效路径" >&2; exit 1
+        fi
+        if mkdir -p "$target_path"; then
+            echo "文件夹 '$path' 已创建。"
+        else
+            echo "错误: 创建文件夹 '$path' 失败。" >&2
+            exit 1
+        fi
+        ;;
+    
+    create_folder)
+        path="$1"
+        target_path="$ServerRoot/$path"
+        if [[ "$target_path" != "$ServerRoot"* ]]; then
+            echo "错误: 无效路径" >&2; exit 1
+        fi
+        if mkdir -p "$target_path"; then
+            echo "文件夹 '$path' 已创建。"
+        else
+            echo "错误: 创建文件夹 '$path' 失败。" >&2
+            exit 1
+        fi
+        ;;
+    
+    unzip_file)
+        path="$1"
+        target_file="$ServerRoot/$path"
+        target_dir=$(dirname "$target_file")
+        if [[ "$target_file" != "$ServerRoot"* ]]; then
+            echo "错误: 无效路径" >&2; exit 1
+        fi
+        if [ ! -f "$target_file" ]; then
+            echo "错误: 文件不存在" >&2; exit 1
+        fi
+
+        local output
+        local exit_code
+        local success=false
+
+        case "$target_file" in
+            *.tar.gz|*.tgz)
+                output=$(tar -xzf "$target_file" -C "$target_dir" 2>&1)
+                exit_code=$?
+                if [ "$exit_code" -eq 0 ]; then success=true; fi
+                ;;
+            *.tar.bz2|*.tbz2)
+                output=$(tar -xjf "$target_file" -C "$target_dir" 2>&1)
+                exit_code=$?
+                if [ "$exit_code" -eq 0 ]; then success=true; fi
+                ;;
+            *.tar)
+                output=$(tar -xf "$target_file" -C "$target_dir" 2>&1)
+                exit_code=$?
+                if [ "$exit_code" -eq 0 ]; then success=true; fi
+                ;;
+            *.zip)
+                output=$(unzip -o "$target_file" -d "$target_dir" 2>&1)
+                exit_code=$?
+                if [ "$exit_code" -eq 0 ] || [ "$exit_code" -eq 1 ]; then success=true; fi
+                ;;
+            *.rar)
+                output=$(unrar x -o+ "$target_file" "$target_dir" 2>&1)
+                exit_code=$?
+                if [ "$exit_code" -eq 0 ]; then success=true; fi
+                ;;
+            *)
+                echo "错误: 不支持的压缩文件格式。" >&2
+                exit 1
+                ;;
+        esac
+
+        if [ "$success" = true ]; then
+            echo "文件 '$path' 已成功解压。"
+        else
+            # 如果失败，将捕获的输出作为错误信息返回
+            echo "解压 '$path' 失败: ${output:-未知错误}" >&2
+            exit 1
+        fi
+        ;;
     *)
-        echo "错误: 未知的 API Action: $ACTION"
+        echo "错误: 未知的 API Action: $ACTION" >&2
         exit 1
         ;;
 esac

@@ -45,9 +45,13 @@
                         <small>已安装插件</small>
                     </div>
                 </div>
-                <button id="deployBtn" class="btn btn-primary" style="width: 100%; margin-bottom: var(--space-3);">部署/更新服务器</button>
-	            <button id="installSmBtn" class="btn btn-secondary" style="width: 100%;">安装/更新插件平台</button>
-            </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+                    <a href="/files" class="btn btn-primary">
+                        <i data-feather="folder" style="width:18px;"></i>
+                        <span>服务器文件管理</span>
+                    </a>
+                </div>
+                </div>
 
             <div class="card">
                 <div class="card-header">
@@ -71,7 +75,7 @@
         </div>
     </div>
     
-    <div id="logModal">
+    <div id="logModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 style="color: white;">实时日志</h2>
@@ -82,7 +86,7 @@
     </div>
 
 <script>
-// --- JavaScript 逻辑 (与原文件基本相同，但做了一些优化) ---
+// --- JavaScript 逻辑 ---
 document.addEventListener('DOMContentLoaded', () => {
     // 激活 Feather 图标
     feather.replace();
@@ -93,26 +97,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const instanceListEl = document.getElementById('instanceList');
     const instanceCountEl = document.getElementById('instanceCount');
     const pluginCountEl = document.getElementById('pluginCount');
-    const logModal = document.getElementById('logModal');
-    const logOutput = document.getElementById('logOutput');
-    const closeBtn = document.querySelector('.close-btn');
-
-    // 模态框事件
-    closeBtn.onclick = () => logModal.style.display = 'none';
-    window.onclick = (event) => {
-        if (event.target == logModal) logModal.style.display = 'none';
-    };
 
     // --- 数据获取与渲染 ---
     async function fetchData(url) {
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const textData = await response.text();
-        try {
-            return JSON.parse(JSON.parse(textData)); // 处理双重编码
-        } catch (e) {
-            return JSON.parse(textData); // 正常情况
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
+        return response.json(); // 直接解析JSON
     }
 
     function updateStatus() {
@@ -155,13 +148,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 instanceListEl.appendChild(item);
             }
             instanceCountEl.textContent = runningCount;
-        }).catch(err => console.error("无法获取实例列表:", err));
+        }).catch(err => {
+            console.error("无法获取实例列表:", err);
+            instanceListEl.innerHTML = '<li>加载实例列表失败。</li>';
+        });
     }
 
     function updatePlugins() {
         fetchData('/api/plugins').then(data => {
             pluginCountEl.textContent = data.installed.length;
-        }).catch(err => console.error("无法获取插件列表:", err));
+        }).catch(err => {
+            console.error("无法获取插件列表:", err);
+            pluginCountEl.textContent = 'N/A';
+        });
     }
 
     function updateStatusLabel(el, condition, trueText, falseText) {
@@ -203,54 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-     document.getElementById('deployBtn').addEventListener('click', async () => {
-         const result = await Swal.fire({
-            title: `确认部署/更新服务器吗?`,
-            text: `这将执行 SteamCMD, 可能需要一些时间。`,
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonText: '开始',
-            cancelButtonText: '取消'
-        });
-        if (!result.isConfirmed) return;
-
-        logModal.style.display = 'block';
-        logOutput.textContent = '正在连接到服务器以获取日志...\n';
-        
-        fetch('/api/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'deploy_server' })
-        }).then(response => {
-            const reader = response.body.getReader();
-            function readStream() {
-                reader.read().then(({ done, value }) => {
-                    if (done) {
-                        logOutput.textContent += '\n--- 日志流结束 ---';
-                        refreshAll();
-                        return;
-                    }
-                    const chunk = new TextDecoder().decode(value);
-                    const lines = chunk.split('\n');
-                    lines.forEach(line => {
-                        if (line.startsWith('data: ')) {
-                            logOutput.textContent += line.substring(6) + '\n';
-                            logOutput.scrollTop = logOutput.scrollHeight;
-                        }
-                    });
-                    readStream();
-                });
-            }
-            readStream();
-        }).catch(err => {
-            logOutput.textContent += `\n--- 发生错误: ${err.message} ---`;
-        });
-    });
-
-    document.getElementById('installSmBtn').addEventListener('click', () => {
-    	handleAction('install_sourcemod', null);
-    });
-
     function refreshAll() {
         updateStatus();
         updateInstances();

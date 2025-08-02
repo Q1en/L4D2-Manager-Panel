@@ -9,6 +9,7 @@ WORKDIR /app
 # rsync, wget, tar: 用于插件和服务器安装
 # ca-certificates: 用于HTTPS下载
 # sudo: 某些脚本或命令可能需要
+# unzip, unrar-free: 用于文件管理器的解压缩功能
 # 开启i386架构，并安装32位运行库
 RUN dpkg --add-architecture i386 && \
     apt-get update && \
@@ -21,6 +22,8 @@ RUN dpkg --add-architecture i386 && \
     ca-certificates \
     sudo \
     expect \
+    unzip \
+    unrar-free \
     lib32gcc-s1 \
     && rm -rf /var/lib/apt/lists/*
 

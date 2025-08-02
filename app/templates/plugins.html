@@ -56,7 +56,6 @@
     </div>
 
 <script>
-// --- JavaScript 逻辑 (与原文件基本相同) ---
 document.addEventListener('DOMContentLoaded', () => {
     feather.replace();
 
@@ -74,10 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchPlugins() {
         try {
             const response = await fetch('/api/plugins');
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const textData = await response.text();
-            const data = JSON.parse(textData); // API返回的是字符串化的JSON
-            const plugins = JSON.parse(data);
+            if (!response.ok) {
+                throw new Error(`HTTP 错误! 状态: ${response.status}`);
+            }
+            const plugins = await response.json(); 
+            
             renderLists(plugins.available || [], plugins.installed || []);
         } catch (error) {
             console.error("无法获取插件列表:", error);

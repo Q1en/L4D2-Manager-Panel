@@ -336,3 +336,94 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     background-color: #fdecea;
     color: #e12d39;
 }
+
+
+/* --- 9. 文件管理器特定样式 --- */
+.file-manager .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.file-manager .breadcrumb {
+    margin-bottom: var(--space-4);
+    font-size: 16px;
+    color: var(--text-secondary);
+}
+
+.file-manager .breadcrumb a {
+    text-decoration: none;
+    color: var(--brand-accent);
+}
+
+.file-manager .data-table .item-name {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    cursor: pointer;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.file-manager .data-table .item-name:hover {
+    color: var(--brand-accent);
+}
+
+.file-manager .data-table th.actions,
+.file-manager .data-table td.actions {
+    text-align: right;
+    width: 200px;
+}
+
+.file-manager .data-table td.actions .btn {
+    padding: var(--space-1) var(--space-2);
+    font-size: 13px;
+    border-radius: var(--border-radius-md);
+}
+
+.file-manager .data-table .icon {
+    width: 20px;
+    height: 20px;
+}
+
+.deploy-prompt {
+    background-color: var(--tag-bg-blue);
+    border: 1px solid var(--tag-text-blue);
+    color: var(--tag-text-blue);
+    padding: var(--space-5);
+    border-radius: var(--border-radius-lg);
+    margin-bottom: var(--space-5);
+}
+
+#editorModal .modal-content {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    width: 90%;
+    max-width: 1000px;
+    height: 80vh;
+}
+#editorModal .modal-header {
+    border-bottom: 1px solid var(--border-default);
+    color: var(--text-primary);
+}
+#editorTextarea {
+    flex-grow: 1;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 15px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--border-radius-md);
+    padding: var(--space-3);
+    resize: none;
+}
+#editorModal .modal-footer {
+    padding-top: var(--space-4);
+    margin-top: var(--space-4);
+    border-top: 1px solid var(--border-default);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+}
