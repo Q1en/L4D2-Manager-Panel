@@ -228,6 +228,44 @@ function Install-SourceModAndMetaMod_NonInteractive() {
     echo "--- 安装流程执行完毕 ---"
 }
 
+function Resolve-Path() {
+    local path="$1"
+    local base_dir
+    local relative_path
+
+    if [[ "$path" == "plugin_dir" || "$path" == "plugin_dir/"* ]]; then
+        base_dir="$PluginSourceDir"
+        if [[ "$path" == "plugin_dir" ]]; then
+            relative_path=""
+        else
+            relative_path=${path#plugin_dir/}
+        fi
+    elif [[ "$path" == "installer_dir" || "$path" == "installer_dir/"* ]]; then
+        base_dir="$InstallerDir"
+        if [[ "$path" == "installer_dir" ]]; then
+            relative_path=""
+        else
+            relative_path=${path#installer_dir/}
+        fi
+    else
+        base_dir="$ServerRoot"
+        relative_path="$path"
+    fi
+
+    local target_path="$base_dir/$relative_path"
+    
+    # 解析为绝对、规范的路径
+    REAL_TARGET_PATH=$(realpath -m "$target_path")
+    REAL_BASE_DIR=$(realpath -m "$base_dir")
+
+    # 安全性检查
+    if [[ "$REAL_TARGET_PATH" != "$REAL_BASE_DIR"* ]]; then
+        echo "错误: 无效或危险的路径访问 '$path'" >&2
+        return 1
+    fi
+    return 0
+}
+
 # --- JSON生成辅助函数 ---
 json_escape() {
     printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
@@ -318,143 +356,120 @@ case "$ACTION" in
     
     # --- 文件管理指令 ---
     list_files)
-        path="$1"
-        target_path="$ServerRoot/$path"
-        if [[ "$target_path" != "$ServerRoot"* ]]; then
-            echo "错误: 无效路径" >&2; exit 1
-        fi
-        if [ ! -d "$target_path" ]; then
-            echo "{\"success\": false, \"error\": \"目录不存在: $path\"}" >&2; exit 1
+        if ! Resolve-Path "$1"; then exit 1; fi
+
+        if [ ! -d "$REAL_TARGET_PATH" ]; then
+            echo "{\"success\": false, \"error\": \"目录不存在: $REAL_TARGET_PATH\"}" >&2; exit 1
         fi
         
-        json="{\"path\": $(json_escape "$path"), \"files\": ["
-        first=true
+        json_parts=""
         shopt -s nullglob
-        for f in "$target_path"/*; do
-            if ! $first; then json+=","; fi
-            first=false
-            
+        for f in "$REAL_TARGET_PATH"/*; do
             filename=$(basename "$f")
             filesize=$(du -sh "$f" | awk '{print $1}')
             filetype="file"
             if [ -d "$f" ]; then filetype="directory"; fi
             modtime=$(date -r "$f" +"%Y-%m-%d %H:%M:%S")
 
-            json+="{\"name\": $(json_escape "$filename"), \"size\": \"$filesize\", \"type\": \"$filetype\", \"mtime\": \"$modtime\"}"
+            file_json="{\"name\": $(json_escape "$filename"), \"size\": \"$filesize\", \"type\": \"$filetype\", \"mtime\": \"$modtime\"}"
+            if [ -z "$json_parts" ]; then
+                json_parts="$file_json"
+            else
+                json_parts="$json_parts,$file_json"
+            fi
         done
-        json+="], \"success\": true}"
-        echo "$json"
+        
+        echo "{\"path\": $(json_escape "$1"), \"files\": [$json_parts], \"success\": true}"
         ;;
 
     get_file_content)
-        path="$1"
-        target_file="$ServerRoot/$path"
-        if [[ "$target_file" != "$ServerRoot"* ]]; then
-            echo "错误: 无效路径" >&2; exit 1
-        fi
-        if [ ! -f "$target_file" ]; then
+        if ! Resolve-Path "$1"; then exit 1; fi
+
+        if [ ! -f "$REAL_TARGET_PATH" ]; then
             echo "错误: 文件不存在" >&2; exit 1
         fi
-        cat "$target_file"
+        cat "$REAL_TARGET_PATH"
         ;;
 
     save_file_content)
-        path="$1"
-        target_file="$ServerRoot/$path"
-        if [[ "$target_file" != "$ServerRoot"* ]]; then
-            echo "错误: 无效路径" >&2; exit 1
-        fi
-        if cat > "$target_file"; then
-            echo "文件 '$path' 已保存。"
+        if ! Resolve-Path "$1"; then exit 1; fi
+        
+        mkdir -p "$(dirname "$REAL_TARGET_PATH")"
+        
+        if cat > "$REAL_TARGET_PATH"; then
+            echo "文件 '$1' 已保存。"
         else
-            echo "错误: 写入文件 '$path' 失败。" >&2
-            exit 1
+            echo "错误: 写入文件 '$1' 失败。" >&2; exit 1
         fi
         ;;
 
     delete_path)
-        path="$1"
-        target_path="$ServerRoot/$path"
-        if [[ "$target_path" != "$ServerRoot"* ]] || [[ -z "$path" ]]; then
-            echo "错误: 无效或危险的路径" >&2; exit 1
+        if ! Resolve-Path "$1"; then exit 1; fi
+        
+        if [[ -z "$1" ]]; then echo "错误: 路径不能为空" >&2; exit 1; fi
+        if [ ! -e "$REAL_TARGET_PATH" ]; then
+            echo "错误: 路径不存在: '$REAL_TARGET_PATH'" >&2; exit 1
         fi
-        if [ ! -e "$target_path" ]; then
-            echo "错误: 路径不存在" >&2; exit 1
-        fi
-        if rm -rf "$target_path"; then
-            echo "路径 '$path' 已被删除。"
+        
+        if rm -rf "$REAL_TARGET_PATH"; then
+            echo "路径 '$1' 已被删除。"
         else
-            echo "错误: 删除路径 '$path' 失败。" >&2
-            exit 1
+            echo "错误: 删除路径 '$1' 失败。" >&2; exit 1
         fi
         ;;
 
     create_folder)
-        path="$1"
-        target_path="$ServerRoot/$path"
-        if [[ "$target_path" != "$ServerRoot"* ]]; then
-            echo "错误: 无效路径" >&2; exit 1
-        fi
-        if mkdir -p "$target_path"; then
-            echo "文件夹 '$path' 已创建。"
+        if ! Resolve-Path "$1"; then exit 1; fi
+        
+        if mkdir -p "$REAL_TARGET_PATH"; then
+            echo "文件夹 '$1' 已创建。"
         else
-            echo "错误: 创建文件夹 '$path' 失败。" >&2
-            exit 1
-        fi
-        ;;
-    
-    create_folder)
-        path="$1"
-        target_path="$ServerRoot/$path"
-        if [[ "$target_path" != "$ServerRoot"* ]]; then
-            echo "错误: 无效路径" >&2; exit 1
-        fi
-        if mkdir -p "$target_path"; then
-            echo "文件夹 '$path' 已创建。"
-        else
-            echo "错误: 创建文件夹 '$path' 失败。" >&2
-            exit 1
+            echo "错误: 创建文件夹 '$1' 失败。" >&2; exit 1
         fi
         ;;
     
     unzip_file)
-        path="$1"
-        target_file="$ServerRoot/$path"
-        target_dir=$(dirname "$target_file")
-        if [[ "$target_file" != "$ServerRoot"* ]]; then
-            echo "错误: 无效路径" >&2; exit 1
-        fi
-        if [ ! -f "$target_file" ]; then
-            echo "错误: 文件不存在" >&2; exit 1
+        if ! Resolve-Path "$1"; then exit 1; fi
+        
+        local target_dir
+        target_dir=$(dirname "$REAL_TARGET_PATH")
+
+        if [ ! -f "$REAL_TARGET_PATH" ]; then
+            echo "错误: 文件不存在: '$REAL_TARGET_PATH'" >&2; exit 1
         fi
 
         local output
         local exit_code
         local success=false
 
-        case "$target_file" in
+        case "$REAL_TARGET_PATH" in
             *.tar.gz|*.tgz)
-                output=$(tar -xzf "$target_file" -C "$target_dir" 2>&1)
+                output=$(tar -xzf "$REAL_TARGET_PATH" -C "$target_dir" 2>&1)
                 exit_code=$?
                 if [ "$exit_code" -eq 0 ]; then success=true; fi
                 ;;
             *.tar.bz2|*.tbz2)
-                output=$(tar -xjf "$target_file" -C "$target_dir" 2>&1)
+                output=$(tar -xjf "$REAL_TARGET_PATH" -C "$target_dir" 2>&1)
                 exit_code=$?
                 if [ "$exit_code" -eq 0 ]; then success=true; fi
                 ;;
             *.tar)
-                output=$(tar -xf "$target_file" -C "$target_dir" 2>&1)
+                output=$(tar -xf "$REAL_TARGET_PATH" -C "$target_dir" 2>&1)
                 exit_code=$?
                 if [ "$exit_code" -eq 0 ]; then success=true; fi
                 ;;
             *.zip)
-                output=$(unzip -o "$target_file" -d "$target_dir" 2>&1)
+                output=$(unzip -o "$REAL_TARGET_PATH" -d "$target_dir" 2>&1)
                 exit_code=$?
                 if [ "$exit_code" -eq 0 ] || [ "$exit_code" -eq 1 ]; then success=true; fi
                 ;;
             *.rar)
-                output=$(unrar x -o+ "$target_file" "$target_dir" 2>&1)
+                output=$(unrar x -o+ "$REAL_TARGET_PATH" "$target_dir" 2>&1)
+                exit_code=$?
+                if [ "$exit_code" -eq 0 ]; then success=true; fi
+                ;;
+            *.7z)
+                output=$(7z x "$REAL_TARGET_PATH" -o"$target_dir" -y 2>&1)
                 exit_code=$?
                 if [ "$exit_code" -eq 0 ]; then success=true; fi
                 ;;
@@ -465,10 +480,9 @@ case "$ACTION" in
         esac
 
         if [ "$success" = true ]; then
-            echo "文件 '$path' 已成功解压。"
+            echo "文件 '$1' 已成功解压。"
         else
-            # 如果失败，将捕获的输出作为错误信息返回
-            echo "解压 '$path' 失败: ${output:-未知错误}" >&2
+            echo "解压 '$1' 失败: ${output:-未知错误}" >&2
             exit 1
         fi
         ;;

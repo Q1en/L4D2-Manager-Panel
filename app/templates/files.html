@@ -42,17 +42,23 @@
 
             <div class="breadcrumb" id="breadcrumb">/</div>
             
-            <div class="item-actions" style="margin-bottom: var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-3);">
-                <button class="btn btn-primary" id="uploadBtn"><i data-feather="upload" style="width:16px;"></i>上传</button>
+            <div class="item-actions" style="margin-bottom: var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-start;">
+                <div id="uploadContainer" style="position: relative;">
+                    <button class="btn btn-primary" id="uploadBtn"><i data-feather="upload" style="width:16px;"></i>上传</button>
+                    <div id="uploadOptions" class="upload-options">
+                        <button class="btn btn-secondary" id="uploadFileBtn"><i data-feather="file" style="width:16px;"></i>上传文件</button>
+                        <button class="btn btn-secondary" id="uploadFolderBtn"><i data-feather="folder" style="width:16px;"></i>上传文件夹</button>
+                    </div>
+                </div>
                 <input type="file" id="fileInput" style="display: none;" multiple>
+                <input type="file" id="folderInput" style="display: none;" webkitdirectory directory multiple>
                 <button class="btn btn-secondary" id="newFolderBtn"><i data-feather="folder-plus" style="width:16px;"></i>新建文件夹</button>
-                 <button class="btn btn-secondary" onclick="loadFiles(currentPath)">
+                 <button class="btn btn-secondary" onclick="loadFiles(currentPath, currentDisplayPath)">
                     <i data-feather="refresh-cw" style="width:16px;"></i>刷新
                 </button>
             </div>
 
-            <div id="fileListContainer" style="overflow-x: auto;">
-            </div>
+            <div id="fileListContainer" style="overflow-x: auto;"></div>
         </div>
     </div>
 
@@ -72,7 +78,7 @@
                 <h2 id="editorFileName">编辑文件</h2>
                 <span class="close-btn" onclick="document.getElementById('editorModal').style.display='none'">&times;</span>
             </div>
-            <textarea id="editorTextarea" placeholder="正在加载文件..."></textarea>
+            <textarea id="editorTextarea"></textarea>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="document.getElementById('editorModal').style.display='none'">取消</button>
                 <button class="btn btn-primary" id="saveFileBtn">保存</button>
@@ -83,6 +89,7 @@
 
 <script>
 let currentPath = '';
+let currentDisplayPath = '服务器根目录';
 
 // --- 核心API调用函数 ---
 async function apiCall(endpoint, body) {
@@ -91,25 +98,25 @@ async function apiCall(endpoint, body) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    const resData = await response.json().catch(() => ({})); 
-
+    const resData = await response.json().catch(() => ({}));
     if (!response.ok || resData.success === false) {
-        const errorMessage = resData.message || resData.error || `HTTP 错误: ${response.statusText}`;
-        throw new Error(errorMessage);
+        throw new Error(resData.message || resData.error || `HTTP 错误: ${response.statusText}`);
     }
     return resData;
 }
 
 // --- 文件列表加载与渲染 ---
-async function loadFiles(path) {
+async function loadFiles(path, displayPath) {
     currentPath = path;
+    if (displayPath) {
+        currentDisplayPath = displayPath;
+    }
     const container = document.getElementById('fileListContainer');
     container.innerHTML = `<div style="text-align: center; padding: var(--space-6); color: var(--text-secondary);">正在加载...</div>`;
-    
     try {
         const data = await apiCall('/api/files/list', { path });
-        renderBreadcrumb(data.path);
-        renderFileList(data.files);
+        renderBreadcrumb(path, currentDisplayPath);
+        renderFileList(data.files, path);
     } catch (error) {
         container.innerHTML = `<div style="text-align: center; padding: var(--space-6); color: var(--status-danger);">加载失败: ${error.message}</div>`;
     } finally {
@@ -117,22 +124,50 @@ async function loadFiles(path) {
     }
 }
 
-function renderBreadcrumb(path) {
+function renderBreadcrumb(path, displayPath) {
     const breadcrumbEl = document.getElementById('breadcrumb');
-    let html = `<a href="#" onclick="loadFiles('')">/home/steam/l4d2server</a> /`;
-    let current = '';
-    if (path) {
-        const parts = path.split('/').filter(p => p);
+    let rootDisplay = displayPath.split('/')[0];
+    let basePath = '';
+    
+    if (displayPath.startsWith('可安装插件目录')) {
+        rootDisplay = '可安装插件目录';
+        basePath = 'plugin_dir';
+    } else if (displayPath.startsWith('插件平台安装包目录')) {
+        rootDisplay = '插件平台安装包目录';
+        basePath = 'installer_dir';
+    } else {
+        rootDisplay = '服务器根目录';
+        basePath = '';
+    }
+    
+    let html = `
+        <div class="breadcrumb-dropdown">
+            <span class="breadcrumb-root">${rootDisplay}</span>
+            <div class="breadcrumb-dropdown-content">
+                <a href="#" onclick="loadFiles('', '服务器根目录')">服务器根目录</a>
+                <a href="#" onclick="loadFiles('plugin_dir', '可安装插件目录')">可安装插件目录</a>
+                <a href="#" onclick="loadFiles('installer_dir', '插件平台安装包目录')">插件平台安装包目录</a>
+            </div>
+        </div>`;
+
+    let currentBuildPath = basePath;
+    let currentDisplayBuildPath = '';
+
+    if (path && path !== basePath && path.length > basePath.length) {
+        const parts = path.substring(basePath.length).split('/').filter(p => p);
         for (let i = 0; i < parts.length; i++) {
-            current += (current ? '/' : '') + parts[i];
-            const nextPath = current;
-            html += ` <a href="#" onclick="loadFiles('${nextPath}')">${parts[i]}</a> /`;
+            currentBuildPath += (currentBuildPath === basePath ? '' : '/') + parts[i];
+            currentDisplayBuildPath += '/' + parts[i];
+            const nextPath = currentBuildPath;
+            const nextDispPath = rootDisplay + currentDisplayBuildPath;
+            html += ` / <a href="#" onclick="loadFiles('${nextPath.replace(/'/g, "\\'")}', '${nextDispPath.replace(/'/g, "\\'")}')">${parts[i]}</a>`;
         }
     }
     breadcrumbEl.innerHTML = html;
+    feather.replace();
 }
 
-function renderFileList(files) {
+function renderFileList(files, path) {
     const container = document.getElementById('fileListContainer');
     if (!files || files.length === 0) {
         container.innerHTML = '<div style="text-align: center; padding: var(--space-6); color: var(--text-secondary);">这个文件夹是空的</div>';
@@ -146,36 +181,35 @@ function renderFileList(files) {
 
     let tableHTML = `
         <table class="data-table">
-            <thead>
-                <tr>
-                    <th style="width: 50%;">名称</th>
-                    <th>大小</th>
-                    <th>修改日期</th>
-                    <th class="actions">操作</th>
-                </tr>
-            </thead>
-            <tbody>
+        <thead>
+            <tr>
+            <th style="width: 50%;">名称</th>
+            <th>大小</th>
+            <th>修改日期</th>
+            <th class="actions">操作</th>
+            </tr>
+        </thead>
+        <tbody>
     `;
     files.forEach(file => {
-        const fullPath = (currentPath ? currentPath + '/' : '') + file.name;
+        const fullPath = (path ? path + '/' : '') + file.name;
+        const fullDisplayPath = (currentDisplayPath ? currentDisplayPath + '/' : '') + file.name;
+        const safeFullPath = fullPath.replace(/'/g, "\\'");
+        const safeFullDisplayPath = fullDisplayPath.replace(/'/g, "\\'");
         const icon = file.type === 'directory' ? 'folder' : 'file';
         const isEditable = /\.(cfg|txt|log|json|xml|ini|sh|vdf|rc|smx|sp)$/i.test(file.name);
-        const isUnzippable = /\.(zip|tar\.gz|tgz|rar|7z)$/i.test(file.name);
+        const isUnzippable = /\.(zip|tar|tar\.gz|tgz|rar|7z)$/i.test(file.name);
+        const itemClickAction = file.type === 'directory' ? `loadFiles('${safeFullPath}', '${safeFullDisplayPath}')` : `return false;`;
 
         tableHTML += `
             <tr>
-                <td>
-                    <a href="#" class="item-name" onclick="${file.type === 'directory' ? `loadFiles('${fullPath}')` : `return false;`}" style="text-decoration: none;">
-                        <i data-feather="${icon}" class="icon"></i>
-                        <span>${file.name}</span>
-                    </a>
-                </td>
+                <td><a href="#" class="item-name" onclick="${itemClickAction}"><i data-feather="${icon}" class="icon"></i><span>${file.name}</span></a></td>
                 <td>${file.size}</td>
                 <td>${file.mtime}</td>
                 <td class="actions">
-                    ${isEditable ? `<button class="btn btn-secondary" onclick="openEditor('${fullPath}')" title="编辑"><i data-feather="edit-2"></i></button>` : ''}
-                    ${isUnzippable ? `<button class="btn btn-secondary" onclick="unzipFile('${fullPath}')" title="解压"><i data-feather="archive"></i></button>` : ''}
-                    <button class="btn btn-danger" onclick="deletePath('${fullPath}')" title="删除"><i data-feather="trash-2"></i></button>
+                    ${isEditable ? `<button class="btn btn-secondary" onclick="openEditor('${safeFullPath}')" title="编辑"><i data-feather="edit-2"></i></button>` : ''}
+                    ${isUnzippable ? `<button class="btn btn-secondary" onclick="unzipFile('${safeFullPath}')" title="解压"><i data-feather="archive"></i></button>` : ''}
+                    <button class="btn btn-danger" onclick="deletePath('${safeFullPath}', '${file.type}')" title="删除"><i data-feather="trash-2"></i></button>
                 </td>
             </tr>
         `;
@@ -185,10 +219,13 @@ function renderFileList(files) {
 }
 
 // --- 文件操作 ---
-async function deletePath(path) {
+async function deletePath(path, type) {
+    const pathType = type === 'directory' ? '文件夹' : '文件';
+    const displayPath = path.replace(/^(plugin_dir\/|installer_dir\/)/, '');
+
     const result = await Swal.fire({
-        title: '确定要删除吗?',
-        text: `你将要永久删除: ${path}`,
+        title: `确定要删除${pathType}吗?`,
+        text: `你将要永久删除: ${displayPath}`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: 'var(--status-danger)',
@@ -196,11 +233,10 @@ async function deletePath(path) {
         cancelButtonText: '取消'
     });
     if (!result.isConfirmed) return;
-
     try {
-        const data = await apiCall('/api/files/delete', { path });
-        Swal.fire('已删除!', data.message, 'success');
-        loadFiles(currentPath);
+        await apiCall('/api/files/delete', { path });
+        Swal.fire('已删除!', `${pathType} '${displayPath}' 已成功删除。`, 'success');
+        loadFiles(currentPath, currentDisplayPath);
     } catch (error) {
         Swal.fire('失败!', `删除失败: ${error.message}`, 'error');
     }
@@ -214,13 +250,12 @@ async function createFolder() {
         confirmButtonText: '创建',
         cancelButtonText: '取消'
     });
-
     if (folderName) {
         const fullPath = (currentPath ? currentPath + '/' : '') + folderName;
         try {
-            const data = await apiCall('/api/files/create_folder', { path: fullPath });
-            Swal.fire('已创建!', data.message, 'success');
-            loadFiles(currentPath);
+            await apiCall('/api/files/create_folder', { path: fullPath });
+            Swal.fire('已创建!', `文件夹 '${folderName}' 已成功创建。`, 'success');
+            loadFiles(currentPath, currentDisplayPath);
         } catch (error) {
             Swal.fire('失败!', `创建文件夹失败: ${error.message}`, 'error');
         }
@@ -229,46 +264,51 @@ async function createFolder() {
 
 function uploadFiles(files) {
     if (files.length === 0) return;
-
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
+    let folderCount = 0;
+    let fileCount = 0;
+    const isFolderUpload = files.length > 0 && files[0].webkitRelativePath !== "";
+    if (isFolderUpload) {
+        const rootFolders = new Set(Array.from(files).map(f => f.webkitRelativePath.split('/')[0]));
+        folderCount = rootFolders.size;
+    } else {
+        fileCount = files.length;
+    }
     for (const file of files) {
-        formData.append('file', file);
+        formData.append('file', file, file.webkitRelativePath || file.name);
     }
     formData.append('path', currentPath);
-
     xhr.open('POST', '/api/files/upload', true);
-
-    xhr.upload.onprogress = function(e) {
+    xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
             const percentComplete = (e.loaded / e.total) * 100;
             const progressBar = Swal.getHtmlContainer()?.querySelector('#upload-progress');
-            if(progressBar) {
-                progressBar.style.width = percentComplete + '%';
-            }
+            if(progressBar) progressBar.style.width = percentComplete + '%';
         }
     };
-    
-    xhr.onloadstart = function() {
+    xhr.onloadstart = () => {
+        let title = isFolderUpload ? `正在上传 ${folderCount} 个文件夹...` : `正在上传 ${fileCount} 个文件...`;
         Swal.fire({
-            title: '正在上传...',
+            title: title,
             html: `
-                <div>正在处理 ${files.length} 个文件</div>
                 <div style="background: #e9ecef; border-radius: .25rem; margin-top: 1rem;">
                     <div id="upload-progress" class="swal2-progress-bar" style="width: 0%; height: 1rem; border-radius: .25rem;"></div>
                 </div>
             `,
             allowOutsideClick: false,
-            showConfirmButton: false,
+            showConfirmButton: false
         });
     };
-
-    xhr.onload = function() {
+    xhr.onload = () => {
         if (xhr.status === 200) {
             const data = JSON.parse(xhr.responseText);
             if (data.success) {
-                Swal.fire('成功!', data.message, 'success');
-                loadFiles(currentPath);
+                let message = data.message;
+                if (isFolderUpload) { message = `成功上传了 ${folderCount} 个文件夹。`; } 
+                else { message = `成功上传了 ${fileCount} 个文件。`; }
+                Swal.fire('成功!', message, 'success');
+                loadFiles(currentPath, currentDisplayPath);
             } else {
                 Swal.fire('失败!', `上传失败: ${data.error || data.message}`, 'error');
             }
@@ -276,11 +316,9 @@ function uploadFiles(files) {
             Swal.fire('失败!', `上传时发生HTTP错误: ${xhr.statusText}`, 'error');
         }
     };
-    
-    xhr.onerror = function() {
+    xhr.onerror = () => {
         Swal.fire('失败!', '上传时发生网络错误。', 'error');
     };
-
     xhr.send(formData);
 }
 
@@ -294,7 +332,7 @@ async function unzipFile(path) {
     try {
         await apiCall('/api/files/unzip', { path });
         Swal.fire('成功!', '文件已成功解压。', 'success');
-        loadFiles(currentPath);
+        loadFiles(currentPath, currentDisplayPath);
     } catch(error) {
         Swal.fire('失败!', `解压失败: ${error.message}`, 'error');
     }
@@ -306,12 +344,10 @@ async function openEditor(path) {
     const modal = document.getElementById('editorModal');
     const textarea = document.getElementById('editorTextarea');
     const fileNameEl = document.getElementById('editorFileName');
-    
     fileNameEl.textContent = `编辑: ${path}`;
     textarea.value = '';
     textarea.placeholder = '正在加载文件内容...';
     modal.style.display = 'flex';
-
     try {
         const response = await fetch('/api/files/get_content', {
             method: 'POST',
@@ -319,11 +355,8 @@ async function openEditor(path) {
             body: JSON.stringify({ path })
         });
         const textData = await response.text();
-        if (!response.ok) {
-            throw new Error(textData || `HTTP ${response.status}`);
-        }
+        if (!response.ok) throw new Error(textData || `HTTP ${response.status}`);
         textarea.value = textData;
-        textarea.placeholder = '在此处编辑文件...';
     } catch (error) {
         textarea.value = `加载文件失败: ${error.message}`;
     }
@@ -332,24 +365,23 @@ async function openEditor(path) {
 async function saveFile() {
     const content = document.getElementById('editorTextarea').value;
     try {
-        const data = await apiCall('/api/files/save_content', { path: fileToEdit, content });
-        Swal.fire('已保存!', data.message, 'success');
+        await apiCall('/api/files/save_content', { path: fileToEdit, content });
+        Swal.fire('已保存!', `文件 '${fileToEdit}' 已成功保存。`, 'success');
         document.getElementById('editorModal').style.display = 'none';
     } catch (error) {
         Swal.fire('失败!', `保存失败: ${error.message}`, 'error');
     }
 }
 
-function handleDeployment() {
+function handleDeployment(action) {
     const logModal = document.getElementById('logModal');
     const logOutput = document.getElementById('logOutput');
     logModal.style.display = 'flex';
     logOutput.textContent = '正在连接到服务器以获取日志...\n';
-    
     fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'deploy_server' })
+        body: JSON.stringify({ action })
     }).then(response => {
         const reader = response.body.getReader();
         function readStream() {
@@ -357,7 +389,7 @@ function handleDeployment() {
                 if (done) {
                     logOutput.textContent += '\n--- 日志流结束 ---';
                     checkServerStatus();
-                    loadFiles(currentPath);
+                    loadFiles(currentPath, currentDisplayPath);
                     return;
                 }
                 const chunk = new TextDecoder().decode(value);
@@ -380,18 +412,21 @@ function handleDeployment() {
 async function handleSmInstall() {
     const result = await Swal.fire({
         title: `确认安装/更新插件平台吗?`,
-        text: `请确保您已将 SourceMod 和 MetaMod 的 .tar.gz 安装包上传至 /app/SourceMod_Installers 目录中。`,
+        text: `请确保您已将 SourceMod 和 MetaMod 的 .tar.gz 安装包上传至 "安装包目录" 中。`,
         icon: 'info',
         showCancelButton: true,
         confirmButtonText: '是的, 执行!',
         cancelButtonText: '取消'
     });
     if (!result.isConfirmed) return;
-    
-    Swal.fire({ title: '正在处理...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({
+        title: '正在处理...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
     try {
-        const data = await apiCall('/api/action', { action: 'install_sourcemod' });
-        Swal.fire('成功!', data.message, 'success');
+        await apiCall('/api/action', { action: 'install_sourcemod' });
+        Swal.fire('成功!', '插件平台已成功安装/更新。', 'success');
     } catch(error) {
         Swal.fire('失败!', `操作失败: ${error.message}`, 'error');
     }
@@ -399,25 +434,40 @@ async function handleSmInstall() {
 
 function checkServerStatus() {
     fetch('/api/status').then(res => res.json()).then(data => {
-        if (data.serverDeployed === false) {
-            document.getElementById('deployPrompt').style.display = 'block';
-        } else {
-            document.getElementById('deployPrompt').style.display = 'none';
-        }
+        document.getElementById('deployPrompt').style.display = data.serverDeployed ? 'none' : 'block';
     }).catch(err => console.error("无法获取服务器状态", err));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     checkServerStatus();
-    loadFiles('');
+    loadFiles('', '服务器根目录');
     feather.replace();
-
     document.getElementById('newFolderBtn').addEventListener('click', createFolder);
-    document.getElementById('uploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadOptions = document.getElementById('uploadOptions');
+    const uploadContainer = document.getElementById('uploadContainer');
+    uploadBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const isHidden = uploadOptions.style.display === 'none' || uploadOptions.style.display === '';
+        uploadOptions.style.display = isHidden ? 'block' : 'none';
+    });
+    document.addEventListener('click', (event) => {
+        if (!uploadContainer.contains(event.target)) {
+            uploadOptions.style.display = 'none';
+        }
+    });
+    document.getElementById('uploadFileBtn').addEventListener('click', () => {
+        document.getElementById('fileInput').click();
+        uploadOptions.style.display = 'none';
+    });
+    document.getElementById('uploadFolderBtn').addEventListener('click', () => {
+        document.getElementById('folderInput').click();
+        uploadOptions.style.display = 'none';
+    });
     document.getElementById('fileInput').addEventListener('change', (e) => uploadFiles(e.target.files));
+    document.getElementById('folderInput').addEventListener('change', (e) => uploadFiles(e.target.files));
     document.getElementById('saveFileBtn').addEventListener('click', saveFile);
-    
-    document.getElementById('deployBtn').addEventListener('click', handleDeployment);
+    document.getElementById('deployBtn').addEventListener('click', () => handleDeployment('deploy_server'));
     document.getElementById('installSmBtn').addEventListener('click', handleSmInstall);
 });
 </script>

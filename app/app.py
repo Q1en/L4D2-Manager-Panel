@@ -13,7 +13,8 @@ PANEL_USER = os.getenv('PANEL_USER', 'admin')
 PANEL_PASSWORD = os.getenv('PANEL_PASSWORD', 'password')
 SCRIPT_PATH = './L4D2_Manager_API.sh'
 SERVER_ROOT = '/home/steam/l4d2server'
-app.config['UPLOAD_FOLDER'] = SERVER_ROOT
+PLUGIN_SOURCE_DIR = '/app/Available_Plugins'
+INSTALLER_DIR = '/app/SourceMod_Installers'
 
 # --- 辅助函数：运行脚本 ---
 def run_script(args, payload_stdin=None):
@@ -269,34 +270,52 @@ def api_upload_file():
     if 'file' not in request.files:
         return jsonify({"success": False, "error": "没有文件部分"}), 400
 
-    # 检查是否有文件被上传
     files = request.files.getlist('file')
-    if not files or files[0].filename == '':
-        return jsonify({"success": False, "error": "没有选择文件"}), 400
-    
     current_path = request.form.get('path', '')
+
+    if current_path.startswith('plugin_dir'):
+        base_dir = PLUGIN_SOURCE_DIR
+        current_path = current_path.replace('plugin_dir', '', 1).lstrip('/')
+    elif current_path.startswith('installer_dir'):
+        base_dir = INSTALLER_DIR
+        current_path = current_path.replace('installer_dir', '', 1).lstrip('/')
+    else:
+        base_dir = SERVER_ROOT
+
+    # 安全检查，防止目录遍历
     if '..' in current_path or current_path.startswith('/'):
-        return jsonify({"success": False, "error": "无效的上传路径"}), 400
+        return jsonify({"success": False, "error": "无效的上传目标路径"}), 400
 
-    uploaded_files = []
+    uploaded_files_count = 0
     for file in files:
-        if file and file.filename:
-            filename = file.filename 
-            if '/' in filename or '\\' in filename:
-                logger.log_api_call('/api/files/upload', 'POST', {'path': current_path, 'filename': filename}, 'failed', '文件名包含路径分隔符')
-                continue # 跳过无效文件
+        if '..' in file.filename:
+            continue
+            
+        # 分割路径，并确保每一部分都不是空字符串
+        parts = file.filename.split('/')
+        if any(not part for part in parts):
+            continue
 
-            destination_folder = os.path.join(app.config['UPLOAD_FOLDER'], current_path)
+        # 安全地拼接路径
+        safe_relative_path = os.path.join(*parts)
+        destination_path = os.path.join(base_dir, current_path, safe_relative_path)
+
+        try:
+            destination_folder = os.path.dirname(destination_path)
             os.makedirs(destination_folder, exist_ok=True)
             
-            file.save(os.path.join(destination_folder, filename))
-            uploaded_files.append(filename)
-            logger.log_api_call('/api/files/upload', 'POST', {'path': current_path, 'filename': filename})
+            file.save(destination_path)
+            uploaded_files_count += 1
+            logger.log_api_call('/api/files/upload', 'POST', {'path': current_path, 'filename': file.filename})
+        except Exception as e:
+            logger.log_api_call('/api/files/upload', 'POST', {'path': current_path, 'filename': file.filename}, 'failed', str(e))
+            return jsonify({"success": False, "error": f"保存文件 '{file.filename}' 时出错: {e}"}), 500
 
-    if not uploaded_files:
-         return jsonify({"success": False, "error": "没有成功上传的文件"}), 400
+    if uploaded_files_count == 0:
+        return jsonify({"success": False, "error": "没有成功上传的文件"}), 400
 
-    return jsonify({"success": True, "message": f"成功上传 {len(uploaded_files)} 个文件"})
+    return jsonify({"success": True, "message": f"成功上传 {uploaded_files_count} 个文件/文件夹"})
+
 
 # --- 日志管理API ---
 @app.route('/api/logs', methods=['GET'])
