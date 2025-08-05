@@ -233,12 +233,57 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
 .plugins-container .list-item:hover { background-color: var(--bg-secondary); }
 
 
-/* --- 6. 日志模态框 (Modal) --- */
-#logModal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }
-.modal-content { background-color: #1e1e1e; color: #d4d4d4; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 800px; height: 70%; border-radius: 8px; display: flex; flex-direction: column; }
-#logOutput { flex-grow: 1; overflow-y: auto; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; background: #1e1e1e; border: 1px solid #333; padding: 10px; border-radius: 5px; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 10px;}
+/* --- 6. 通用模态框 (Modal) --- */
+.modal { 
+    display: none; 
+    position: fixed; 
+    z-index: 1000; 
+    left: 0; top: 0; 
+    width: 100%; 
+    height: 100%; 
+    background-color: rgba(0,0,0,0.6);
+    justify-content: center;
+    align-items: center;
+}
+.modal-content { 
+    margin: auto;
+    padding: var(--space-5); 
+    border-radius: var(--border-radius-lg);
+    display: flex; 
+    flex-direction: column;
+}
+
+/* 日志流模态框 */
+#logModal .modal-content {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    width: 80%;
+    max-width: 800px;
+    height: 70%;
+}
+#logOutput { 
+    flex-grow: 1; 
+    overflow-y: auto; 
+    white-space: pre-wrap; 
+    font-family: 'Courier New', Courier, monospace; 
+    font-size: 0.9rem; 
+    background: #1e1e1e; 
+    border: 1px solid #333; 
+    padding: 10px; 
+    border-radius: var(--border-radius-md); 
+}
+.modal-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding-bottom: var(--space-3); 
+    margin-bottom: var(--space-4);
+}
+#logModal .modal-header {
+    border-bottom: 1px solid #444;
+}
 .close-btn { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+.close-btn:hover { color: var(--text-primary); }
 
 
 /* --- 7. 复选框统一样式 --- */
@@ -251,14 +296,12 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     -ms-user-select: none;
     user-select: none;
 }
-
 .checkbox-label input[type="checkbox"] {
     width: 18px;
     height: 18px;
     flex-shrink: 0;
     cursor: pointer;
 }
-
 
 /* --- 8. 日志页面特定样式 --- */
 .logs-controls {
@@ -269,13 +312,11 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     border-bottom: 1px solid var(--border-default);
     margin-bottom: var(--space-4);
 }
-
 .data-table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
 }
-
 .data-table th {
     text-align: left;
     padding: var(--space-3);
@@ -286,26 +327,19 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
-
 .data-table td {
     padding: var(--space-3);
     vertical-align: middle;
     font-size: 14px;
 }
-
 .data-table tbody tr {
     border-bottom: 1px solid var(--border-default);
     transition: background-color 0.2s ease;
 }
+.data-table tbody tr:last-child { border-bottom: none; }
+.data-table tbody tr:hover { background-color: var(--bg-secondary); }
 
-.data-table tbody tr:last-child {
-    border-bottom: none;
-}
-
-.data-table tbody tr:hover {
-    background-color: var(--bg-secondary);
-}
-
+/* 日志详情单元格样式 */
 .log-details {
     cursor: pointer;
     max-width: 350px;
@@ -313,8 +347,6 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-
-/* 状态标签样式 */
 .status-badge {
     display: inline-block;
     padding: 3px 10px;
@@ -324,14 +356,12 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     text-transform: capitalize;
     line-height: 1.5;
 }
-
 .status-badge.success,
 .status-badge.completed,
 .status-badge.started {
     background-color: #e7f7ec;
     color: #23944f;
 }
-
 .status-badge.failed {
     background-color: #fdecea;
     color: #e12d39;
@@ -346,18 +376,16 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     flex-wrap: wrap;
     gap: var(--space-3);
 }
-
 .file-manager .breadcrumb {
     margin-bottom: var(--space-4);
     font-size: 16px;
     color: var(--text-secondary);
+    word-break: break-all;
 }
-
 .file-manager .breadcrumb a {
     text-decoration: none;
     color: var(--brand-accent);
 }
-
 .file-manager .data-table .item-name {
     display: flex;
     align-items: center;
@@ -366,23 +394,19 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     color: var(--text-primary);
     font-weight: 500;
 }
-
-.file-manager .data-table .item-name:hover {
+.file-manager .data-table .item-name:hover span {
+    text-decoration: underline;
     color: var(--brand-accent);
 }
-
 .file-manager .data-table th.actions,
 .file-manager .data-table td.actions {
     text-align: right;
     width: 200px;
 }
-
 .file-manager .data-table td.actions .btn {
-    padding: var(--space-1) var(--space-2);
-    font-size: 13px;
+    padding: var(--space-2);
     border-radius: var(--border-radius-md);
 }
-
 .file-manager .data-table .icon {
     width: 20px;
     height: 20px;
@@ -397,6 +421,7 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     margin-bottom: var(--space-5);
 }
 
+/* 编辑器模态框 */
 #editorModal .modal-content {
     background-color: var(--bg-primary);
     color: var(--text-primary);
@@ -426,4 +451,9 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     display: flex;
     justify-content: flex-end;
     gap: var(--space-3);
+}
+
+/* 上传进度条样式 */
+.swal2-progress-bar {
+    background: var(--brand-accent) !important;
 }

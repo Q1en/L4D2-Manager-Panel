@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const result = await Swal.fire({
             title: '确认批量操作',
-            html: `你确定要对这 ${selectedPlugins.length} 个插件执行 <b>${action.includes('install') ? '安装' : '卸载'}</b> 操作吗？`,
+            html: `你确定要对这 ${selectedPlugins.length} 个插件执行 <b>${action.startsWith('install') ? '安装' : '卸载'}</b> 操作吗？`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: '是的, 执行!',

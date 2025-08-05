@@ -29,30 +29,30 @@
 
         <div class="card file-manager">
             <div class="card-header">
-                <h2>/home/steam/l4d2server</h2>
+                <h2>文件浏览器</h2>
                 <div class="item-actions">
-                    <button class="btn btn-secondary" id="deployBtn" title="部署/更新服务器文件">
-                        <i data-feather="download-cloud" style="width:16px;"></i>&nbsp;部署服务器
+                    <button class="btn btn-secondary" id="deployBtn">
+                        <i data-feather="download-cloud" style="width:16px;"></i>部署/更新服务器
                     </button>
-                    <button class="btn btn-secondary" id="installSmBtn" title="安装/更新SourceMod插件平台">
-                        <i data-feather="box" style="width:16px;"></i>&nbsp;安装插件平台
+                    <button class="btn btn-secondary" id="installSmBtn">
+                        <i data-feather="box" style="width:16px;"></i>安装/更新插件平台
                     </button>
                 </div>
             </div>
 
             <div class="breadcrumb" id="breadcrumb">/</div>
             
-            <div class="item-actions" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3);">
-                <button class="btn btn-primary" id="uploadBtn"><i data-feather="upload" style="width:16px;"></i>&nbsp;上传</button>
+            <div class="item-actions" style="margin-bottom: var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-3);">
+                <button class="btn btn-primary" id="uploadBtn"><i data-feather="upload" style="width:16px;"></i>上传</button>
                 <input type="file" id="fileInput" style="display: none;" multiple>
-                <button class="btn btn-secondary" id="newFolderBtn"><i data-feather="folder-plus" style="width:16px;"></i>&nbsp;新建文件夹</button>
+                <button class="btn btn-secondary" id="newFolderBtn"><i data-feather="folder-plus" style="width:16px;"></i>新建文件夹</button>
                  <button class="btn btn-secondary" onclick="loadFiles(currentPath)">
-                    <i data-feather="refresh-cw" style="width:16px;"></i>&nbsp;刷新
+                    <i data-feather="refresh-cw" style="width:16px;"></i>刷新
                 </button>
             </div>
 
             <div id="fileListContainer" style="overflow-x: auto;">
-                </div>
+            </div>
         </div>
     </div>
 
@@ -72,7 +72,7 @@
                 <h2 id="editorFileName">编辑文件</h2>
                 <span class="close-btn" onclick="document.getElementById('editorModal').style.display='none'">&times;</span>
             </div>
-            <textarea id="editorTextarea"></textarea>
+            <textarea id="editorTextarea" placeholder="正在加载文件..."></textarea>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="document.getElementById('editorModal').style.display='none'">取消</button>
                 <button class="btn btn-primary" id="saveFileBtn">保存</button>
@@ -93,7 +93,7 @@ async function apiCall(endpoint, body) {
     });
     const resData = await response.json().catch(() => ({})); 
 
-    if (!response.ok || resData.success === false) { // 明确检查 success: false
+    if (!response.ok || resData.success === false) {
         const errorMessage = resData.message || resData.error || `HTTP 错误: ${response.statusText}`;
         throw new Error(errorMessage);
     }
@@ -107,13 +107,7 @@ async function loadFiles(path) {
     container.innerHTML = `<div style="text-align: center; padding: var(--space-6); color: var(--text-secondary);">正在加载...</div>`;
     
     try {
-        const data = await fetch('/api/files/list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path })
-        }).then(res => res.json());
-
-        if (!data.success) throw new Error(data.error);
+        const data = await apiCall('/api/files/list', { path });
         renderBreadcrumb(data.path);
         renderFileList(data.files);
     } catch (error) {
@@ -125,18 +119,14 @@ async function loadFiles(path) {
 
 function renderBreadcrumb(path) {
     const breadcrumbEl = document.getElementById('breadcrumb');
-    let html = `<a href="#" onclick="loadFiles('')">/</a>`;
+    let html = `<a href="#" onclick="loadFiles('')">/home/steam/l4d2server</a> /`;
     let current = '';
     if (path) {
         const parts = path.split('/').filter(p => p);
         for (let i = 0; i < parts.length; i++) {
             current += (current ? '/' : '') + parts[i];
             const nextPath = current;
-            if (i === parts.length - 1) {
-                html += ` ${parts[i]}`;
-            } else {
-                html += ` <a href="#" onclick="loadFiles('${nextPath}')">${parts[i]}</a> /`;
-            }
+            html += ` <a href="#" onclick="loadFiles('${nextPath}')">${parts[i]}</a> /`;
         }
     }
     breadcrumbEl.innerHTML = html;
@@ -150,7 +140,7 @@ function renderFileList(files) {
     }
     
     files.sort((a, b) => {
-        if (a.type === b.type) return a.name.localeCompare(b.name, 'zh-CN');
+        if (a.type === b.type) return a.name.localeCompare(b.name, 'zh-CN', { numeric: true });
         return a.type === 'directory' ? -1 : 1;
     });
 
@@ -175,7 +165,7 @@ function renderFileList(files) {
         tableHTML += `
             <tr>
                 <td>
-                    <a href="#" class="item-name" onclick="${file.type === 'directory' ? `loadFiles('${fullPath}')` : `return false;`}">
+                    <a href="#" class="item-name" onclick="${file.type === 'directory' ? `loadFiles('${fullPath}')` : `return false;`}" style="text-decoration: none;">
                         <i data-feather="${icon}" class="icon"></i>
                         <span>${file.name}</span>
                     </a>
@@ -220,7 +210,6 @@ async function createFolder() {
     const { value: folderName } = await Swal.fire({
         title: '输入新文件夹的名称',
         input: 'text',
-        inputPlaceholder: '例如: 我的新插件',
         showCancelButton: true,
         confirmButtonText: '创建',
         cancelButtonText: '取消'
@@ -238,38 +227,63 @@ async function createFolder() {
     }
 }
 
-async function uploadFiles(files) {
+function uploadFiles(files) {
     if (files.length === 0) return;
-    
-    Swal.fire({
-        title: '正在上传...',
-        html: `正在上传 ${files.length} 个文件`,
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-    
+
+    const xhr = new XMLHttpRequest();
     const formData = new FormData();
     for (const file of files) {
         formData.append('file', file);
     }
     formData.append('path', currentPath);
 
-    try {
-        const response = await fetch('/api/files/upload', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error || data.message);
+    xhr.open('POST', '/api/files/upload', true);
 
-        Swal.fire('成功!', data.message, 'success');
-        loadFiles(currentPath);
-    } catch (error) {
-         Swal.fire('失败!', `上传失败: ${error.message}`, 'error');
-    }
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            const progressBar = Swal.getHtmlContainer()?.querySelector('#upload-progress');
+            if(progressBar) {
+                progressBar.style.width = percentComplete + '%';
+            }
+        }
+    };
+    
+    xhr.onloadstart = function() {
+        Swal.fire({
+            title: '正在上传...',
+            html: `
+                <div>正在处理 ${files.length} 个文件</div>
+                <div style="background: #e9ecef; border-radius: .25rem; margin-top: 1rem;">
+                    <div id="upload-progress" class="swal2-progress-bar" style="width: 0%; height: 1rem; border-radius: .25rem;"></div>
+                </div>
+            `,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+        });
+    };
+
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            if (data.success) {
+                Swal.fire('成功!', data.message, 'success');
+                loadFiles(currentPath);
+            } else {
+                Swal.fire('失败!', `上传失败: ${data.error || data.message}`, 'error');
+            }
+        } else {
+            Swal.fire('失败!', `上传时发生HTTP错误: ${xhr.statusText}`, 'error');
+        }
+    };
+    
+    xhr.onerror = function() {
+        Swal.fire('失败!', '上传时发生网络错误。', 'error');
+    };
+
+    xhr.send(formData);
 }
 
-// --- unzipFile 函数 (恢复显示逻辑) ---
 async function unzipFile(path) {
     Swal.fire({
         title: '正在解压...',
@@ -279,16 +293,13 @@ async function unzipFile(path) {
     });
     try {
         await apiCall('/api/files/unzip', { path });
-        // 成功时显示通用消息
         Swal.fire('成功!', '文件已成功解压。', 'success');
         loadFiles(currentPath);
     } catch(error) {
-        // 失败时显示来自后端的具体错误
         Swal.fire('失败!', `解压失败: ${error.message}`, 'error');
     }
 }
 
-// --- 文件编辑器 ---
 let fileToEdit = '';
 async function openEditor(path) {
     fileToEdit = path;
@@ -297,7 +308,8 @@ async function openEditor(path) {
     const fileNameEl = document.getElementById('editorFileName');
     
     fileNameEl.textContent = `编辑: ${path}`;
-    textarea.value = '正在加载文件内容...';
+    textarea.value = '';
+    textarea.placeholder = '正在加载文件内容...';
     modal.style.display = 'flex';
 
     try {
@@ -311,6 +323,7 @@ async function openEditor(path) {
             throw new Error(textData || `HTTP ${response.status}`);
         }
         textarea.value = textData;
+        textarea.placeholder = '在此处编辑文件...';
     } catch (error) {
         textarea.value = `加载文件失败: ${error.message}`;
     }
@@ -327,14 +340,75 @@ async function saveFile() {
     }
 }
 
-// --- 页面初始化和事件绑定 ---
-document.addEventListener('DOMContentLoaded', () => {
+function handleDeployment() {
+    const logModal = document.getElementById('logModal');
+    const logOutput = document.getElementById('logOutput');
+    logModal.style.display = 'flex';
+    logOutput.textContent = '正在连接到服务器以获取日志...\n';
+    
+    fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deploy_server' })
+    }).then(response => {
+        const reader = response.body.getReader();
+        function readStream() {
+            reader.read().then(({ done, value }) => {
+                if (done) {
+                    logOutput.textContent += '\n--- 日志流结束 ---';
+                    checkServerStatus();
+                    loadFiles(currentPath);
+                    return;
+                }
+                const chunk = new TextDecoder().decode(value);
+                const lines = chunk.split('\n');
+                lines.forEach(line => {
+                    if (line.startsWith('data: ')) {
+                        logOutput.textContent += line.substring(6) + '\n';
+                        logOutput.scrollTop = logOutput.scrollHeight;
+                    }
+                });
+                readStream();
+            });
+        }
+        readStream();
+    }).catch(err => {
+        logOutput.textContent += `\n--- 发生错误: ${err.message} ---`;
+    });
+}
+
+async function handleSmInstall() {
+    const result = await Swal.fire({
+        title: `确认安装/更新插件平台吗?`,
+        text: `请确保您已将 SourceMod 和 MetaMod 的 .tar.gz 安装包上传至 /app/SourceMod_Installers 目录中。`,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: '是的, 执行!',
+        cancelButtonText: '取消'
+    });
+    if (!result.isConfirmed) return;
+    
+    Swal.fire({ title: '正在处理...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const data = await apiCall('/api/action', { action: 'install_sourcemod' });
+        Swal.fire('成功!', data.message, 'success');
+    } catch(error) {
+        Swal.fire('失败!', `操作失败: ${error.message}`, 'error');
+    }
+}
+
+function checkServerStatus() {
     fetch('/api/status').then(res => res.json()).then(data => {
-        if (data.success && !data.serverDeployed) {
+        if (data.serverDeployed === false) {
             document.getElementById('deployPrompt').style.display = 'block';
+        } else {
+            document.getElementById('deployPrompt').style.display = 'none';
         }
     }).catch(err => console.error("无法获取服务器状态", err));
+}
 
+document.addEventListener('DOMContentLoaded', () => {
+    checkServerStatus();
     loadFiles('');
     feather.replace();
 
@@ -343,68 +417,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fileInput').addEventListener('change', (e) => uploadFiles(e.target.files));
     document.getElementById('saveFileBtn').addEventListener('click', saveFile);
     
-    const deployBtn = document.getElementById('deployBtn');
-    const logModal = document.getElementById('logModal');
-    const logOutput = document.getElementById('logOutput');
-
-    deployBtn.addEventListener('click', () => {
-        logModal.style.display = 'flex';
-        logOutput.textContent = '正在连接到服务器以获取日志...\n';
-        
-        fetch('/api/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'deploy_server' })
-        }).then(response => {
-            const reader = response.body.getReader();
-            function readStream() {
-                reader.read().then(({ done, value }) => {
-                    if (done) {
-                        logOutput.textContent += '\n--- 日志流结束 ---';
-                        fetch('/api/status').then(res => res.json()).then(data => {
-                           if (data.success && data.serverDeployed) {
-                               document.getElementById('deployPrompt').style.display = 'none';
-                           }
-                        });
-                        loadFiles(currentPath);
-                        return;
-                    }
-                    const chunk = new TextDecoder().decode(value);
-                    const lines = chunk.split('\n');
-                    lines.forEach(line => {
-                        if (line.startsWith('data: ')) {
-                            logOutput.textContent += line.substring(6) + '\n';
-                            logOutput.scrollTop = logOutput.scrollHeight;
-                        }
-                    });
-                    readStream();
-                });
-            }
-            readStream();
-        }).catch(err => {
-            logOutput.textContent += `\n--- 发生错误: ${err.message} ---`;
-        });
-    });
-
-    document.getElementById('installSmBtn').addEventListener('click', async () => {
-         const result = await Swal.fire({
-            title: `确认安装/更新插件平台吗?`,
-            text: `请确保您已将 SourceMod 和 MetaMod 的 .tar.gz 安装包上传至 /app/SourceMod_Installers 目录中。`,
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonText: '是的, 执行!',
-            cancelButtonText: '取消'
-        });
-        if (!result.isConfirmed) return;
-        
-        Swal.fire({ title: '正在处理...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        try {
-            const data = await apiCall('/api/action', { action: 'install_sourcemod' });
-            Swal.fire('成功!', data.message, 'success');
-        } catch(error) {
-            Swal.fire('失败!', `操作失败: ${error.message}`, 'error');
-        }
-    });
+    document.getElementById('deployBtn').addEventListener('click', handleDeployment);
+    document.getElementById('installSmBtn').addEventListener('click', handleSmInstall);
 });
 </script>
 
