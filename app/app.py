@@ -244,6 +244,29 @@ def api_delete_path():
     result = run_script(['delete_path', path])
     return jsonify(result)
 
+@app.route('/api/files/move', methods=['POST'])
+@login_required
+def api_move_folder():
+    data = request.get_json(silent=True) or {}
+    source_path = data.get('source_path')
+    destination_path = data.get('destination_path')
+
+    if not source_path or destination_path is None:
+        return jsonify({"success": False, "error": "缺少源文件夹或目标文件夹路径"}), 400
+
+    api_params = {
+        'source_path': source_path,
+        'destination_path': destination_path
+    }
+    logger.log_api_call('/api/files/move', 'POST', api_params)
+    result = run_script(['move_path', source_path, destination_path])
+
+    if result['success']:
+        return jsonify({"success": True, "message": result.get('output', '文件夹移动成功')})
+
+    logger.log_api_call('/api/files/move', 'POST', api_params, 'failed', result['message'])
+    return jsonify({"success": False, "error": result['message']}), 400
+
 @app.route('/api/files/create_folder', methods=['POST'])
 @login_required
 def api_create_folder():

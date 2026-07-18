@@ -86,10 +86,40 @@
         </div>
     </div>
 
+    <div id="moveFolderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>移动文件或文件夹</h2>
+                <span class="close-btn" id="closeMoveFolderBtn">&times;</span>
+            </div>
+            <p class="move-source-label">源路径：<strong id="moveSourcePath"></strong></p>
+            <div class="form-group">
+                <label class="form-label" for="moveRootSelect">目标根目录</label>
+                <select class="form-input" id="moveRootSelect">
+                    <option value="">服务器根目录</option>
+                    <option value="plugin_dir">可安装插件目录</option>
+                    <option value="installer_dir">插件平台安装包目录</option>
+                </select>
+            </div>
+            <div class="breadcrumb move-breadcrumb" id="moveDestinationBreadcrumb"></div>
+            <div class="move-destination-list" id="moveDestinationList"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelMoveFolderBtn">取消</button>
+                <button class="btn btn-primary" id="confirmMoveFolderBtn">
+                    <i data-feather="corner-down-right" style="width:16px;"></i>移动到当前文件夹
+                </button>
+            </div>
+        </div>
+    </div>
+
 
 <script>
 let currentPath = '';
 let currentDisplayPath = '服务器根目录';
+let pathToMove = '';
+let pathToMoveDisplay = '';
+let pathToMoveType = '';
+let moveDestinationPath = '';
 
 // --- 核心API调用函数 ---
 async function apiCall(endpoint, body) {
@@ -196,6 +226,8 @@ function renderFileList(files, path) {
         const fullDisplayPath = (currentDisplayPath ? currentDisplayPath + '/' : '') + file.name;
         const safeFullPath = fullPath.replace(/'/g, "\\'");
         const safeFullDisplayPath = fullDisplayPath.replace(/'/g, "\\'");
+        const encodedFullPath = encodeURIComponent(fullPath).replace(/'/g, '%27');
+        const encodedFullDisplayPath = encodeURIComponent(fullDisplayPath).replace(/'/g, '%27');
         const icon = file.type === 'directory' ? 'folder' : 'file';
         const isEditable = /\.(cfg|txt|log|json|xml|ini|sh|vdf|rc|smx|sp)$/i.test(file.name);
         const isUnzippable = /\.(zip|tar|tar\.gz|tgz|rar|7z)$/i.test(file.name);
@@ -209,6 +241,7 @@ function renderFileList(files, path) {
                 <td class="actions">
                     ${isEditable ? `<button class="btn btn-secondary" onclick="openEditor('${safeFullPath}')" title="编辑"><i data-feather="edit-2"></i></button>` : ''}
                     ${isUnzippable ? `<button class="btn btn-secondary" onclick="unzipFile('${safeFullPath}')" title="解压"><i data-feather="archive"></i></button>` : ''}
+                    <button class="btn btn-secondary" onclick="openMovePath(decodeURIComponent('${encodedFullPath}'), decodeURIComponent('${encodedFullDisplayPath}'), '${file.type}')" title="移动"><i data-feather="move"></i></button>
                     <button class="btn btn-danger" onclick="deletePath('${safeFullPath}', '${file.type}')" title="删除"><i data-feather="trash-2"></i></button>
                 </td>
             </tr>
@@ -259,6 +292,152 @@ async function createFolder() {
         } catch (error) {
             Swal.fire('失败!', `创建文件夹失败: ${error.message}`, 'error');
         }
+    }
+}
+
+function closeMoveFolderModal() {
+    document.getElementById('moveFolderModal').style.display = 'none';
+}
+
+function getMoveRoot(path) {
+    if (path === 'plugin_dir' || path.startsWith('plugin_dir/')) {
+        return { path: 'plugin_dir', name: '可安装插件目录' };
+    }
+    if (path === 'installer_dir' || path.startsWith('installer_dir/')) {
+        return { path: 'installer_dir', name: '插件平台安装包目录' };
+    }
+    return { path: '', name: '服务器根目录' };
+}
+
+function joinManagerPath(parentPath, name) {
+    return parentPath ? `${parentPath}/${name}` : name;
+}
+
+function isMoveDestinationInvalid(path) {
+    return pathToMoveType === 'directory' && (path === pathToMove || path.startsWith(`${pathToMove}/`));
+}
+
+function renderMoveDestinationBreadcrumb(path) {
+    const container = document.getElementById('moveDestinationBreadcrumb');
+    const root = getMoveRoot(path);
+    const relativePath = root.path ? path.substring(root.path.length).replace(/^\//, '') : path;
+    const parts = relativePath.split('/').filter(Boolean);
+
+    document.getElementById('moveRootSelect').value = root.path;
+    container.replaceChildren();
+
+    const rootButton = document.createElement('button');
+    rootButton.type = 'button';
+    rootButton.className = 'breadcrumb-button';
+    rootButton.textContent = root.name;
+    rootButton.addEventListener('click', () => loadMoveDestinations(root.path));
+    container.appendChild(rootButton);
+
+    let buildPath = root.path;
+    parts.forEach(part => {
+        container.appendChild(document.createTextNode(' / '));
+        buildPath = joinManagerPath(buildPath, part);
+        const partPath = buildPath;
+        const partButton = document.createElement('button');
+        partButton.type = 'button';
+        partButton.className = 'breadcrumb-button';
+        partButton.textContent = part;
+        partButton.addEventListener('click', () => loadMoveDestinations(partPath));
+        container.appendChild(partButton);
+    });
+}
+
+function renderMoveDestinations(files) {
+    const container = document.getElementById('moveDestinationList');
+    const directories = (files || [])
+        .filter(file => file.type === 'directory')
+        .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true }));
+
+    container.replaceChildren();
+    if (directories.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'move-destination-empty';
+        empty.textContent = '当前文件夹内没有子文件夹';
+        container.appendChild(empty);
+        return;
+    }
+
+    directories.forEach(directory => {
+        const path = joinManagerPath(moveDestinationPath, directory.name);
+        const invalid = isMoveDestinationInvalid(path);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'move-destination-item';
+        button.disabled = invalid;
+
+        const icon = document.createElement('i');
+        icon.setAttribute('data-feather', 'folder');
+        icon.className = 'icon';
+        const name = document.createElement('span');
+        name.textContent = directory.name;
+        button.append(icon, name);
+
+        if (invalid) {
+            button.title = '不能移动到源文件夹或其子目录';
+        } else {
+            button.addEventListener('click', () => loadMoveDestinations(path));
+        }
+        container.appendChild(button);
+    });
+    feather.replace();
+}
+
+async function loadMoveDestinations(path) {
+    moveDestinationPath = path;
+    renderMoveDestinationBreadcrumb(path);
+    const container = document.getElementById('moveDestinationList');
+    container.innerHTML = '<div class="move-destination-empty">正在加载...</div>';
+
+    try {
+        const data = await apiCall('/api/files/list', { path });
+        renderMoveDestinations(data.files);
+    } catch (error) {
+        container.replaceChildren();
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'move-destination-empty move-destination-error';
+        errorMessage.textContent = `加载目标文件夹失败: ${error.message}`;
+        container.appendChild(errorMessage);
+    }
+}
+
+function openMovePath(path, displayPath, type) {
+    pathToMove = path;
+    pathToMoveDisplay = displayPath;
+    pathToMoveType = type;
+    document.getElementById('moveSourcePath').textContent = displayPath;
+    document.getElementById('moveFolderModal').style.display = 'flex';
+    loadMoveDestinations(getMoveRoot(path).path);
+}
+
+async function confirmMoveFolder() {
+    const root = getMoveRoot(moveDestinationPath);
+    const destinationName = moveDestinationPath || root.name;
+    const pathType = pathToMoveType === 'directory' ? '文件夹' : '文件';
+    const result = await Swal.fire({
+        title: `确认移动${pathType}吗？`,
+        text: `将“${pathToMoveDisplay}”移动到“${destinationName}”`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: '确认移动',
+        cancelButtonText: '取消'
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+        await apiCall('/api/files/move', {
+            source_path: pathToMove,
+            destination_path: moveDestinationPath
+        });
+        closeMoveFolderModal();
+        await Swal.fire('移动成功!', `${pathType}已移动到目标位置。`, 'success');
+        loadFiles(currentPath, currentDisplayPath);
+    } catch (error) {
+        Swal.fire('移动失败!', error.message, 'error');
     }
 }
 
@@ -467,6 +646,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fileInput').addEventListener('change', (e) => uploadFiles(e.target.files));
     document.getElementById('folderInput').addEventListener('change', (e) => uploadFiles(e.target.files));
     document.getElementById('saveFileBtn').addEventListener('click', saveFile);
+    document.getElementById('moveRootSelect').addEventListener('change', (event) => loadMoveDestinations(event.target.value));
+    document.getElementById('closeMoveFolderBtn').addEventListener('click', closeMoveFolderModal);
+    document.getElementById('cancelMoveFolderBtn').addEventListener('click', closeMoveFolderModal);
+    document.getElementById('confirmMoveFolderBtn').addEventListener('click', confirmMoveFolder);
     document.getElementById('deployBtn').addEventListener('click', () => handleDeployment('deploy_server'));
     document.getElementById('installSmBtn').addEventListener('click', handleSmInstall);
 });

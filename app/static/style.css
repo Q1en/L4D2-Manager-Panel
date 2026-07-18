@@ -402,11 +402,15 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
 .file-manager .data-table th.actions,
 .file-manager .data-table td.actions {
     text-align: right;
-    width: 200px;
+    width: 240px;
 }
 .file-manager .data-table td.actions .btn {
     padding: var(--space-2);
     border-radius: var(--border-radius-md);
+}
+.file-manager .data-table th:nth-child(3),
+.file-manager .data-table td:nth-child(3) {
+    white-space: nowrap;
 }
 .file-manager .data-table .icon {
     width: 20px;
@@ -452,6 +456,93 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
     display: flex;
     justify-content: flex-end;
     gap: var(--space-3);
+}
+
+/* 移动文件夹模态框 */
+#moveFolderModal .modal-content {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    width: min(90%, 680px);
+    max-height: 80vh;
+    box-sizing: border-box;
+}
+#moveFolderModal .modal-header {
+    border-bottom: 1px solid var(--border-default);
+}
+#moveFolderModal .form-input {
+    border-radius: var(--border-radius-md);
+}
+#moveFolderModal .modal-footer {
+    padding-top: var(--space-4);
+    margin-top: var(--space-4);
+    border-top: 1px solid var(--border-default);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+}
+.move-source-label {
+    margin: 0 0 var(--space-4);
+    overflow-wrap: anywhere;
+}
+.move-breadcrumb {
+    min-height: 24px;
+    margin-bottom: var(--space-3) !important;
+}
+.breadcrumb-button {
+    padding: 0;
+    color: var(--brand-accent);
+    background: none;
+    border: none;
+    font: inherit;
+    cursor: pointer;
+}
+.breadcrumb-button:hover {
+    text-decoration: underline;
+}
+.move-destination-list {
+    min-height: 180px;
+    max-height: 320px;
+    overflow-y: auto;
+    border: 1px solid var(--border-default);
+    border-radius: var(--border-radius-md);
+}
+.move-destination-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: none;
+    border-bottom: 1px solid var(--border-default);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.move-destination-item:last-child {
+    border-bottom: none;
+}
+.move-destination-item:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    color: var(--brand-accent);
+}
+.move-destination-item:disabled {
+    color: #9CA3AF;
+    cursor: not-allowed;
+}
+.move-destination-item .icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+.move-destination-empty {
+    padding: var(--space-6);
+    color: var(--text-secondary);
+    text-align: center;
+}
+.move-destination-error {
+    color: var(--status-danger);
 }
 
 /* 上传进度条样式 */
@@ -515,4 +606,22 @@ small { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
 }
 .upload-options .btn:hover {
     background-color: var(--bg-secondary);
+}
+
+@media (max-width: 720px) {
+    body {
+        padding: var(--space-4);
+    }
+    .file-manager .data-table th.actions,
+    .file-manager .data-table td.actions {
+        width: 210px;
+    }
+    #moveFolderModal .modal-content {
+        width: calc(100% - var(--space-4));
+        max-height: 92vh;
+        padding: var(--space-4);
+    }
+    #moveFolderModal .modal-footer {
+        flex-wrap: wrap;
+    }
 }

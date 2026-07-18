@@ -258,8 +258,9 @@ function Resolve-Path() {
     REAL_TARGET_PATH=$(realpath -m "$target_path")
     REAL_BASE_DIR=$(realpath -m "$base_dir")
 
-    # 安全性检查
-    if [[ "$REAL_TARGET_PATH" != "$REAL_BASE_DIR"* ]]; then
+    # 安全性检查：目标必须是根目录本身或根目录的直接/间接子路径。
+    # 使用带分隔符的前缀判断，避免 /base-other 被误判为 /base 的子路径。
+    if [[ "$REAL_TARGET_PATH" != "$REAL_BASE_DIR" && "$REAL_TARGET_PATH" != "$REAL_BASE_DIR/"* ]]; then
         echo "错误: 无效或危险的路径访问 '$path'" >&2
         return 1
     fi
@@ -415,6 +416,50 @@ case "$ACTION" in
             echo "路径 '$1' 已被删除。"
         else
             echo "错误: 删除路径 '$1' 失败。" >&2; exit 1
+        fi
+        ;;
+
+    move_path)
+        source_path="$1"
+        destination_path="$2"
+
+        if [ -z "$source_path" ]; then
+            echo "错误: 源路径不能为空。" >&2; exit 1
+        fi
+
+        if ! Resolve-Path "$source_path"; then exit 1; fi
+        real_source_path="$REAL_TARGET_PATH"
+        real_source_base="$REAL_BASE_DIR"
+
+        # 不允许移动三个文件管理根目录本身。
+        if [ "$real_source_path" = "$real_source_base" ]; then
+            echo "错误: 不能移动文件管理根目录。" >&2; exit 1
+        fi
+        if [ ! -e "$real_source_path" ] && [ ! -L "$real_source_path" ]; then
+            echo "错误: 源文件或文件夹不存在: '$source_path'" >&2; exit 1
+        fi
+
+        if ! Resolve-Path "$destination_path"; then exit 1; fi
+        real_destination_path="$REAL_TARGET_PATH"
+
+        if [ ! -d "$real_destination_path" ]; then
+            echo "错误: 目标文件夹不存在: '${destination_path:-服务器根目录}'" >&2; exit 1
+        fi
+
+        # 目录不能移动到自身或其子目录中；普通文件不受此限制。
+        if [ -d "$real_source_path" ] && [[ "$real_destination_path" = "$real_source_path" || "$real_destination_path" = "$real_source_path/"* ]]; then
+            echo "错误: 不能将文件夹移动到自身或其子目录中。" >&2; exit 1
+        fi
+
+        destination_target="$real_destination_path/$(basename "$real_source_path")"
+        if [ -e "$destination_target" ] || [ -L "$destination_target" ]; then
+            echo "错误: 目标目录中已存在同名文件或文件夹。" >&2; exit 1
+        fi
+
+        if mv -- "$real_source_path" "$destination_target"; then
+            echo "路径 '$source_path' 已移动到 '${destination_path:-服务器根目录}'。"
+        else
+            echo "错误: 移动路径 '$source_path' 失败。" >&2; exit 1
         fi
         ;;
 
